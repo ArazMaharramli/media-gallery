@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  name        String
+  description String?
+  date        DateTime
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  viewTokens   ViewToken[]
+  uploadTokens UploadToken[]
+  media        Media[]
+
+  @@map("events")
+}
+
+model ViewToken {
+  id        String   @id @default(uuid())
+  eventId   String
+  token     String   @unique
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@index([eventId])
+  @@map("view_tokens")
+}
+
+model UploadToken {
+  id        String   @id @default(uuid())
+  eventId   String
+  token     String   @unique
+  name      String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  event Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  media Media[]
+
+  @@index([eventId])
+  @@index([active])
+  @@map("upload_tokens")
+}
+
+model Media {
+  id            String       @id @default(uuid())
+  eventId       String
+  uploadTokenId String?
+  filename      String
+  originalName  String
+  mimeType      String
+  size          BigInt
+  storageKey    String
+  type          MediaType
+  uploadedBy    UploaderType
+  createdAt     DateTime     @default(now())
+
+  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  uploadToken UploadToken? @relation(fields: [uploadTokenId], references: [id], onDelete: SetNull)
+
+  @@index([eventId])
+  @@index([uploadTokenId])
+  @@index([createdAt])
+  @@map("media")
+}
+
+enum MediaType {
+  photo
+  video
+}
+
+enum UploaderType {
+  photographer
+  guest
+}
