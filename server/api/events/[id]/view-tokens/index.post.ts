@@ -15,8 +15,12 @@ export default defineEventHandler(async (event) => {
     throwNotFoundError('Event', eventId)
   }
 
+  // Parse optional mediaIds from request body
+  const body = await readBody(event).catch(() => ({}))
+  const mediaIds = Array.isArray(body?.mediaIds) ? body.mediaIds : undefined
+
   // Create view token
-  const viewToken = await db.viewTokens.create(eventId)
+  const viewToken = await db.viewTokens.create(eventId, mediaIds)
 
   return createdResponse(event, viewToken)
 })

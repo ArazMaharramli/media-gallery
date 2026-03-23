@@ -22,7 +22,13 @@ export default defineEventHandler(async (event) => {
   }
 
   // Get the media for this event
-  const media = await db.media.findByEventId(viewToken.eventId)
+  let media = await db.media.findByEventId(viewToken.eventId)
+
+  // Filter by mediaIds if specified (selective sharing)
+  if (viewToken.mediaIds && viewToken.mediaIds.length > 0) {
+    const mediaIdSet = new Set(viewToken.mediaIds)
+    media = media.filter((item: any) => mediaIdSet.has(item.id))
+  }
 
   return successResponse(event, {
     event: {

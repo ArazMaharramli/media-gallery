@@ -93,13 +93,14 @@ export const db = {
         where: { token }
       })
     },
-    create: async (eventId: string) => {
+    create: async (eventId: string, mediaIds?: string[]) => {
       const token = crypto.randomUUID().replace(/-/g, '').substring(0, 16)
       return prisma.viewToken.create({
         data: {
           eventId,
           token,
-          active: true
+          active: true,
+          mediaIds: mediaIds || []
         }
       })
     },

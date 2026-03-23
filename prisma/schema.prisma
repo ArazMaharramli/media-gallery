@@ -27,6 +27,7 @@ model ViewToken {
   eventId   String
   token     String   @unique
   active    Boolean  @default(true)
+  mediaIds  String[] @default([])
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

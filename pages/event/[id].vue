@@ -21,7 +21,7 @@
             <svg v-else class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
-            Share Gallery
+            {{ selectionMode && selectedMediaIds.size > 0 ? `Share ${selectedMediaIds.size} Selected` : 'Share Gallery' }}
           </button>
           <button
             @click="showShareLinks = !showShareLinks"
@@ -151,9 +151,17 @@
                 :class="token.active ? 'bg-green-500' : 'bg-gray-400'"
               ></div>
               <div>
-                <p class="text-sm font-mono" :class="token.active ? 'text-gray-900' : 'text-gray-500'">
-                  {{ token.token }}
-                </p>
+                <div class="flex items-center gap-2">
+                  <p class="text-sm font-mono" :class="token.active ? 'text-gray-900' : 'text-gray-500'">
+                    {{ token.token }}
+                  </p>
+                  <span
+                    class="text-xs px-1.5 py-0.5 rounded"
+                    :class="token.active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-200 text-gray-500'"
+                  >
+                    {{ token.mediaIds && token.mediaIds.length > 0 ? `${token.mediaIds.length} items` : 'All media' }}
+                  </span>
+                </div>
                 <p class="text-xs" :class="token.active ? 'text-gray-500' : 'text-gray-400'">
                   {{ formatTokenDate(token.createdAt) }}
                   <span v-if="!token.active"> · Revoked</span>
@@ -479,11 +487,85 @@
       </div>
     </div>
 
-    <!-- Upload Zone -->
-    <div class="bg-white rounded-lg shadow-sm border p-6">
-      <h2 class="text-lg font-semibold text-gray-900 mb-4">Upload Media</h2>
+    <!-- Batch Delete Confirmation Modal -->
+    <div v-if="showBatchDeleteModal" class="fixed inset-0 z-50 overflow-y-auto">
+      <div class="flex min-h-full items-center justify-center p-4">
+        <div class="fixed inset-0 bg-black bg-opacity-30" @click="closeBatchDeleteModal"></div>
+        <div class="relative bg-white rounded-lg shadow-xl w-full max-w-md p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-semibold text-gray-900">Delete {{ selectedMediaIds.size }} Items</h3>
+            <button @click="closeBatchDeleteModal" class="text-gray-400 hover:text-gray-600">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          <div class="space-y-4">
+            <p class="text-sm text-gray-600">
+              Are you sure you want to delete <span class="font-medium">{{ selectedMediaIds.size }} selected items</span>? This action cannot be undone.
+            </p>
+            <div class="flex justify-end gap-3">
+              <button
+                type="button"
+                @click="closeBatchDeleteModal"
+                class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                @click="batchDeleteMedia"
+                :disabled="isBatchDeleting"
+                class="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {{ isBatchDeleting ? 'Deleting...' : `Delete ${selectedMediaIds.size} Items` }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-      <!-- Drop Zone -->
+    <!-- Tabs -->
+    <div class="bg-white rounded-lg shadow-sm border">
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
+          <button
+            v-if="media.length > 0"
+            @click="activeTab = 'media'"
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="activeTab === 'media' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          >
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Media
+              <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                {{ media.length }}
+              </span>
+            </span>
+          </button>
+          <button
+            @click="activeTab = 'upload'"
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="activeTab === 'upload' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          >
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload Media
+              <span v-if="uploadQueue.length > 0" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">
+                {{ uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length }}
+              </span>
+            </span>
+          </button>
+        </nav>
+      </div>
+
+      <!-- Upload Tab Content -->
+      <div v-if="activeTab === 'upload'" class="p-6">
+        <!-- Drop Zone -->
       <div
         @dragover.prevent="isDragging = true"
         @dragleave.prevent="isDragging = false"
@@ -609,28 +691,90 @@
           </div>
         </div>
       </div>
-    </div>
-
-    <!-- Media Grid -->
-    <div class="bg-white rounded-lg shadow-sm border p-6">
-      <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-semibold text-gray-900">Media ({{ media.length }} items)</h2>
       </div>
 
-      <div v-if="media.length === 0" class="text-center py-8 text-gray-500">
-        <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <p class="mt-2 text-sm">No media uploaded yet</p>
-        <p class="text-xs text-gray-400">Upload photos and videos to get started</p>
+      <!-- Media Tab Content -->
+      <div v-if="activeTab === 'media'" class="p-6">
+        <div class="flex items-center justify-between mb-4">
+          <div class="flex items-center gap-4">
+            <span v-if="selectionMode && selectedMediaIds.size > 0" class="text-sm text-indigo-600">
+              {{ selectedMediaIds.size }} selected
+            </span>
+          </div>
+          <div class="flex items-center gap-2">
+            <template v-if="selectionMode">
+            <button
+              @click="selectAll"
+              class="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Select All
+            </button>
+            <button
+              @click="deselectAll"
+              class="text-sm text-gray-600 hover:text-gray-900"
+            >
+              Deselect All
+            </button>
+            <button
+              v-if="selectedMediaIds.size > 0"
+              @click="showBatchDeleteModal = true"
+              class="px-3 py-1.5 text-sm font-medium text-red-600 bg-red-50 rounded-md hover:bg-red-100"
+            >
+              Delete
+            </button>
+            <button
+              @click="toggleSelectionMode"
+              class="px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              Done
+            </button>
+          </template>
+          <template v-else>
+
+            <button
+              v-if="media.length > 0"
+              @click="toggleSelectionMode"
+              class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            >
+              <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              Select
+            </button>
+                        <!-- View Mode Toggle -->
+            <div v-if="media.length > 0" class="flex items-center border border-gray-200 rounded-md overflow-hidden mr-2">
+              <button
+                @click="viewMode = 'grid'"
+                class="p-1.5 transition-colors"
+                :class="viewMode === 'grid' ? 'bg-gray-200 text-gray-900' : 'bg-white text-gray-500 hover:text-gray-700'"
+                title="Grid view"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                @click="viewMode = 'list'"
+                class="p-1.5 transition-colors"
+                :class="viewMode === 'list' ? 'bg-gray-200 text-gray-900' : 'bg-white text-gray-500 hover:text-gray-700'"
+                title="List view"
+              >
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </template>
+        </div>
       </div>
 
-      <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div v-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         <div
           v-for="(item, index) in media"
           :key="item.id"
-          @click="openLightbox(index)"
+          @click="selectionMode ? toggleMediaSelection(item.id) : openLightbox(index)"
           class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer"
+          :class="{ 'ring-2 ring-indigo-500 ring-offset-2': selectionMode && selectedMediaIds.has(item.id) }"
         >
           <!-- Thumbnail -->
           <img
@@ -646,10 +790,45 @@
             </svg>
           </div>
 
+          <!-- Selection Overlay (visible when selected) -->
+          <div
+            v-if="selectionMode && selectedMediaIds.has(item.id)"
+            class="absolute inset-0 bg-indigo-600/30 pointer-events-none"
+          ></div>
+
+          <!-- Selection Checkbox (visible in selection mode) -->
+          <div
+            v-if="selectionMode"
+            class="absolute top-2 left-2 z-10"
+          >
+            <div
+              class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all shadow-md"
+              :class="selectedMediaIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white/90 border-gray-400'"
+            >
+              <svg v-if="selectedMediaIds.has(item.id)" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Preview Button (visible in selection mode) -->
+          <button
+            v-if="selectionMode"
+            @click.stop="openLightbox(index)"
+            class="absolute top-2 right-2 z-10 p-1.5 bg-black/60 rounded-full text-white hover:bg-black/80 transition-colors shadow-md"
+            title="Preview"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </button>
+
           <!-- Uploader Badge -->
           <div
             v-if="item.uploadedBy === 'guest' && getUploaderName(item.uploadTokenId)"
-            class="absolute top-2 left-2 bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded"
+            class="absolute bg-indigo-600 text-white text-xs px-1.5 py-0.5 rounded z-10"
+            :class="selectionMode ? 'bottom-2 left-2' : 'top-2 left-2'"
           >
             {{ getUploaderName(item.uploadTokenId) }}
           </div>
@@ -657,7 +836,7 @@
           <!-- Video Badge -->
           <div
             v-if="item.type === 'video'"
-            class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
+            class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1 z-10"
           >
             <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
               <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
@@ -665,8 +844,11 @@
             Video
           </div>
 
-          <!-- Hover Overlay -->
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+          <!-- Hover Overlay (only when not in selection mode) -->
+          <div
+            v-if="!selectionMode"
+            class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100"
+          >
             <div class="flex gap-2">
               <span class="p-2 bg-white rounded-full shadow-lg">
                 <svg class="w-4 h-4 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -687,6 +869,86 @@
           </div>
         </div>
       </div>
+
+      <!-- List View -->
+      <div v-else class="space-y-2">
+        <div
+          v-for="(item, index) in media"
+          :key="item.id"
+          @click="selectionMode ? toggleMediaSelection(item.id) : openLightbox(index)"
+          class="group flex items-center gap-4 p-3 bg-gray-50 rounded-lg cursor-pointer transition-colors"
+          :class="selectionMode && selectedMediaIds.has(item.id) ? 'bg-indigo-50 ring-2 ring-indigo-500' : 'hover:bg-gray-100'"
+        >
+          <!-- Selection Checkbox (visible in selection mode) -->
+          <div
+            v-if="selectionMode"
+            class="flex-shrink-0"
+          >
+            <div
+              class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all shadow-sm"
+              :class="selectedMediaIds.has(item.id) ? 'bg-indigo-600 border-indigo-600 scale-110' : 'bg-white border-gray-400'"
+            >
+              <svg v-if="selectedMediaIds.has(item.id)" class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Thumbnail -->
+          <div class="relative w-16 h-16 flex-shrink-0 bg-gray-200 rounded-md overflow-hidden">
+            <img
+              v-if="item.type === 'photo'"
+              :src="getMediaUrl(item)"
+              :alt="item.originalName"
+              class="w-full h-full object-cover"
+            />
+            <div v-else class="w-full h-full flex items-center justify-center bg-gray-900">
+              <svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+
+          <!-- Media Info -->
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+            <div class="flex items-center gap-2 mt-1">
+              <span class="text-xs text-gray-500 capitalize">{{ item.type }}</span>
+              <span v-if="item.uploadedBy === 'guest' && getUploaderName(item.uploadTokenId)" class="text-xs px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
+                {{ getUploaderName(item.uploadTokenId) }}
+              </span>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="flex-shrink-0 flex items-center gap-2">
+            <!-- Preview Button -->
+            <button
+              @click.stop="openLightbox(index)"
+              class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
+              title="Preview"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </button>
+            <!-- Delete Button (only when not in selection mode) -->
+            <button
+              v-if="!selectionMode"
+              @click.stop="confirmDelete(item, $event)"
+              class="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-full transition-colors"
+              title="Delete"
+            >
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
     </div>
 
     <!-- Toast Notification -->
@@ -728,6 +990,7 @@ interface ViewToken {
   eventId: string
   token: string
   active: boolean
+  mediaIds: string[]
   createdAt: string
 }
 
@@ -763,6 +1026,7 @@ const showShareLinks = ref(false)
 const showNewLinkModal = ref(false)
 const showShareModal = ref(false)
 const showDeleteModal = ref(false)
+const showBatchDeleteModal = ref(false)
 const newLinkName = ref('')
 const createLinkError = ref('')
 const isCreatingLink = ref(false)
@@ -773,9 +1037,20 @@ const shareLink = ref('')
 const copiedShare = ref(false)
 const mediaToDelete = ref<Media | null>(null)
 const isDeleting = ref(false)
+const isBatchDeleting = ref(false)
 const toastMessage = ref('')
 const showToast = ref(false)
 const qrCanvasRef = ref<HTMLCanvasElement | null>(null)
+
+// Selection state
+const selectionMode = ref(false)
+const selectedMediaIds = ref<Set<string>>(new Set())
+
+// View mode (grid or list)
+const viewMode = ref<'grid' | 'list'>('grid')
+
+// Tab state
+const activeTab = ref<'media' | 'upload'>('media')
 
 // Upload state
 const fileInputRef = ref<HTMLInputElement | null>(null)
@@ -813,6 +1088,18 @@ const viewTokens = computed<ViewToken[]>(() => viewTokensResponse.value?.data ||
 // Fetch media
 const { data: mediaResponse, refresh: refreshMedia } = await useFetch(`/api/events/${eventId}/media`)
 const media = computed<Media[]>(() => mediaResponse.value?.data || [])
+
+// Set initial tab based on media existence
+if (media.value.length === 0) {
+  activeTab.value = 'upload'
+}
+
+// Watch media changes to handle tab visibility
+watch(media, (newMedia) => {
+  if (newMedia.length === 0 && activeTab.value === 'media') {
+    activeTab.value = 'upload'
+  }
+})
 
 // Lightbox computed properties
 const currentMedia = computed(() => media.value[currentMediaIndex.value])
@@ -968,15 +1255,29 @@ async function handleShareGallery() {
   isCreatingViewToken.value = true
 
   try {
+    // If in selection mode with items selected, share only those items
+    const mediaIds = selectionMode.value && selectedMediaIds.value.size > 0
+      ? Array.from(selectedMediaIds.value)
+      : undefined
+
     const response = await $fetch(`/api/events/${eventId}/view-tokens`, {
-      method: 'POST'
+      method: 'POST',
+      body: mediaIds ? { mediaIds } : {}
     })
 
     shareLink.value = `${window.location.origin}/gallery/${response.data.token}`
 
     // Auto-copy to clipboard
     await navigator.clipboard.writeText(shareLink.value)
-    showToastMessage('Share link copied to clipboard')
+
+    if (mediaIds) {
+      showToastMessage(`Share link copied (${mediaIds.length} items)`)
+      // Exit selection mode after sharing
+      selectionMode.value = false
+      selectedMediaIds.value.clear()
+    } else {
+      showToastMessage('Share link copied to clipboard')
+    }
 
     showShareModal.value = true
 
@@ -1232,6 +1533,79 @@ async function deleteMedia() {
   } finally {
     isDeleting.value = false
   }
+}
+
+// Batch delete functions
+function closeBatchDeleteModal() {
+  showBatchDeleteModal.value = false
+}
+
+async function batchDeleteMedia() {
+  if (selectedMediaIds.value.size === 0) return
+
+  isBatchDeleting.value = true
+  const idsToDelete = Array.from(selectedMediaIds.value)
+  let deletedCount = 0
+
+  try {
+    for (const id of idsToDelete) {
+      try {
+        await $fetch(`/api/media/${id}`, {
+          method: 'DELETE'
+        })
+        deletedCount++
+      } catch (err) {
+        console.error(`Failed to delete media ${id}:`, err)
+      }
+    }
+
+    // Close lightbox if the current media was deleted
+    if (lightboxOpen.value && selectedMediaIds.value.has(currentMedia.value?.id)) {
+      closeLightbox()
+    }
+
+    showToastMessage(`Deleted ${deletedCount} items`)
+
+    // Exit selection mode and refresh
+    selectionMode.value = false
+    selectedMediaIds.value.clear()
+    await refreshMedia()
+  } catch (err: any) {
+    console.error('Batch delete failed:', err)
+  } finally {
+    isBatchDeleting.value = false
+    showBatchDeleteModal.value = false
+  }
+}
+
+// Selection mode functions
+function toggleSelectionMode() {
+  selectionMode.value = !selectionMode.value
+  if (!selectionMode.value) {
+    selectedMediaIds.value.clear()
+  }
+}
+
+function toggleMediaSelection(id: string) {
+  if (selectedMediaIds.value.has(id)) {
+    selectedMediaIds.value.delete(id)
+  } else {
+    selectedMediaIds.value.add(id)
+  }
+  // Trigger reactivity
+  selectedMediaIds.value = new Set(selectedMediaIds.value)
+}
+
+function selectAll() {
+  media.value.forEach((item: Media) => {
+    selectedMediaIds.value.add(item.id)
+  })
+  selectedMediaIds.value = new Set(selectedMediaIds.value)
+}
+
+function deselectAll() {
+  selectedMediaIds.value.clear()
+  selectedMediaIds.value = new Set(selectedMediaIds.value)
 }
 
 useHead({
