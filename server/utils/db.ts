@@ -125,12 +125,19 @@ export const db = {
       })
       return serializeMedia(media)
     },
-    findByEventId: async (eventId: string) => {
+    findByEventId: async (eventId: string, options?: { skip?: number; take?: number }) => {
       const items = await prisma.media.findMany({
         where: { eventId },
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
       })
       return items.map(serializeMedia)
+    },
+    countByEventId: async (eventId: string) => {
+      return prisma.media.count({
+        where: { eventId }
+      })
     },
     create: async (data: {
       eventId: string

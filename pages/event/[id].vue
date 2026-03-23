@@ -541,7 +541,7 @@
               </svg>
               Media
               <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
-                {{ media.length }}
+                {{ totalMediaCount }}
               </span>
             </span>
           </button>
@@ -948,6 +948,24 @@
           </div>
         </div>
       </div>
+
+      <!-- Load More Trigger / Loading Indicator -->
+      <div
+        v-if="activeTab === 'media' && media.length > 0"
+        ref="loadMoreTrigger"
+        class="py-8 flex justify-center"
+      >
+        <div v-if="isLoadingMore" class="flex items-center gap-2 text-gray-500">
+          <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <span class="text-sm">Loading more...</span>
+        </div>
+        <div v-else-if="!hasMoreMedia && media.length > 0" class="text-sm text-gray-400">
+          {{ totalMediaCount }} items total
+        </div>
+      </div>
     </div>
     </div>
 
@@ -1085,9 +1103,55 @@ const uploadTokens = computed<UploadToken[]>(() => tokensResponse.value?.data ||
 const { data: viewTokensResponse, refresh: refreshViewTokens } = await useFetch(`/api/events/${eventId}/view-tokens`)
 const viewTokens = computed<ViewToken[]>(() => viewTokensResponse.value?.data || [])
 
-// Fetch media
-const { data: mediaResponse, refresh: refreshMedia } = await useFetch(`/api/events/${eventId}/media`)
-const media = computed<Media[]>(() => mediaResponse.value?.data || [])
+// Pagination state
+const media = ref<Media[]>([])
+const currentPage = ref(1)
+const hasMoreMedia = ref(true)
+const isLoadingMore = ref(false)
+const totalMediaCount = ref(0)
+const loadMoreTrigger = ref<HTMLDivElement | null>(null)
+const ITEMS_PER_PAGE = 20
+
+// Fetch initial media
+async function fetchMedia(page: number = 1, append: boolean = false) {
+  try {
+    const response = await $fetch(`/api/events/${eventId}/media?page=${page}&limit=${ITEMS_PER_PAGE}`) as any
+
+    if (append) {
+      media.value = [...media.value, ...response.data.items]
+    } else {
+      media.value = response.data.items
+    }
+
+    totalMediaCount.value = response.data.pagination.total
+    hasMoreMedia.value = response.data.pagination.hasMore
+    currentPage.value = page
+  } catch (err) {
+    console.error('Failed to fetch media:', err)
+  }
+}
+
+// Load more media (infinite scroll)
+async function loadMoreMedia() {
+  if (isLoadingMore.value || !hasMoreMedia.value) return
+
+  isLoadingMore.value = true
+  try {
+    await fetchMedia(currentPage.value + 1, true)
+  } finally {
+    isLoadingMore.value = false
+  }
+}
+
+// Refresh media (reset to page 1)
+async function refreshMedia() {
+  currentPage.value = 1
+  hasMoreMedia.value = true
+  await fetchMedia(1, false)
+}
+
+// Initial fetch
+await fetchMedia(1)
 
 // Set initial tab based on media existence
 if (media.value.length === 0) {
@@ -1186,6 +1250,34 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+
+  // Set up IntersectionObserver for infinite scroll
+  if (loadMoreTrigger.value) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreMedia.value && !isLoadingMore.value) {
+          loadMoreMedia()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+    observer.observe(loadMoreTrigger.value)
+  }
+})
+
+// Watch for loadMoreTrigger changes (for when it's rendered later)
+watch(loadMoreTrigger, (el) => {
+  if (el) {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreMedia.value && !isLoadingMore.value) {
+          loadMoreMedia()
+        }
+      },
+      { rootMargin: '100px' }
+    )
+    observer.observe(el)
+  }
 })
 
 onUnmounted(() => {
