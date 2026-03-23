@@ -21,20 +21,21 @@ This document describes the database schema and entity relationships.
         ┌────────┼────────┐
         │ 1:N    │ 1:N    │ 1:N
         ▼        ▼        ▼
-┌───────────────┐ ┌───────────────┐ ┌─────────────────────────┐
-│   ViewToken   │ │  UploadToken  │ │         Media           │
-├───────────────┤ ├───────────────┤ ├─────────────────────────┤
-│ id    UUID(PK)│ │ id    UUID(PK)│ │ id        UUID (PK)     │
-│ eventId  UUID │ │ eventId  UUID │ │ eventId   UUID (FK)     │
-│ token  VAR(16)│ │ token  VAR(16)│ │ filename  VARCHAR(255)  │
-│ createdAt TS  │ │ active BOOLEAN│ │ originalName VARCHAR    │
-└───────────────┘ │ createdAt TS  │ │ mimeType  VARCHAR(100)  │
-                  └───────────────┘ │ size      BIGINT        │
-                                    │ storageKey VARCHAR(500) │
-                                    │ type      ENUM          │
-                                    │ uploadedBy ENUM         │
-                                    │ createdAt TIMESTAMP     │
-                                    └─────────────────────────┘
+┌───────────────┐ ┌────────────────┐ ┌─────────────────────────┐
+│   ViewToken   │ │  UploadToken   │ │         Media           │
+├───────────────┤ ├────────────────┤ ├─────────────────────────┤
+│ id    UUID(PK)│ │ id     UUID(PK)│ │ id        UUID (PK)     │
+│ eventId  UUID │ │ eventId   UUID │ │ eventId   UUID (FK)     │
+│ token  VAR(16)│ │ token   VAR(16)│ │ uploadTokenId UUID (FK) │
+│ createdAt TS  │ │ name    VAR(50)│ │ filename  VARCHAR(255)  │
+└───────────────┘ │ active  BOOLEAN│ │ originalName VARCHAR    │
+                  │ createdAt TS   │ │ mimeType  VARCHAR(100)  │
+                  └────────────────┘ │ size      BIGINT        │
+                          │          │ storageKey VARCHAR(500) │
+                          │ 1:N      │ type      ENUM          │
+                          └─────────►│ uploadedBy ENUM         │
+                                     │ createdAt TIMESTAMP     │
+                                     └─────────────────────────┘
 ```
 
 ---
@@ -76,13 +77,14 @@ Represents a shareable view link token. Multiple tokens can exist per event.
 
 ### UploadToken
 
-Represents a shareable upload link token. Multiple tokens can exist per event. Tokens can be deactivated.
+Represents a shareable upload link token. Multiple tokens can exist per event. Tokens can be deactivated. Each token has a name to identify who will use it.
 
 | Field | Type | Constraints | Description |
 |-------|------|-------------|-------------|
 | `id` | UUID | PK, auto-generated | Unique token record identifier |
 | `eventId` | UUID | FK → Event.id, NOT NULL | Parent event reference |
 | `token` | VARCHAR(16) | UNIQUE, NOT NULL | The shareable token string |
+| `name` | VARCHAR(50) | NOT NULL | Name/label for uploader (e.g., "Uncle Bob", "Wedding Party") |
 | `active` | BOOLEAN | NOT NULL, default TRUE | Whether the token is active |
 | `createdAt` | TIMESTAMP | NOT NULL, default NOW | Token creation timestamp |
 
@@ -100,6 +102,7 @@ Represents an uploaded photo or video.
 |-------|------|-------------|-------------|
 | `id` | UUID | PK, auto-generated | Unique media identifier |
 | `eventId` | UUID | FK → Event.id, NOT NULL | Parent event reference |
+| `uploadTokenId` | UUID | FK → UploadToken.id, NULLABLE | Upload token used (null if photographer upload) |
 | `filename` | VARCHAR(255) | NOT NULL | Generated filename in storage |
 | `originalName` | VARCHAR(255) | NOT NULL | Original filename from upload |
 | `mimeType` | VARCHAR(100) | NOT NULL | MIME type (e.g., "image/jpeg") |
@@ -112,6 +115,7 @@ Represents an uploaded photo or video.
 **Indexes:**
 - Primary key on `id`
 - Foreign key index on `eventId`
+- Foreign key index on `uploadTokenId`
 - Index on `createdAt` (for sorting)
 
 ---
