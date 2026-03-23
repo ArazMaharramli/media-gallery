@@ -98,9 +98,21 @@ export const db = {
       return prisma.viewToken.create({
         data: {
           eventId,
-          token
+          token,
+          active: true
         }
       })
+    },
+    revoke: async (id: string) => {
+      try {
+        await prisma.viewToken.update({
+          where: { id },
+          data: { active: false }
+        })
+        return true
+      } catch {
+        return false
+      }
     }
   },
 

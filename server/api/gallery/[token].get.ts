@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
 
   // Find the view token
   const viewToken = await db.viewTokens.findByToken(token)
-  if (!viewToken) {
+  if (!viewToken || !viewToken.active) {
     throwNotFoundError('Gallery')
   }
 

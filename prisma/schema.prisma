@@ -26,11 +26,13 @@ model ViewToken {
   id        String   @id @default(uuid())
   eventId   String
   token     String   @unique
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   @@index([eventId])
+  @@index([active])
   @@map("view_tokens")
 }
 
