@@ -15,6 +15,12 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
 
+# Separate stage for runtime dependencies (cached independently)
+FROM base AS runtime-deps
+WORKDIR /app
+# Only copy what's needed to install these specific packages
+RUN npm init -y && npm install --omit=dev sharp fluent-ffmpeg && rm package.json package-lock.json
+
 # Production image
 FROM base AS runner
 WORKDIR /app
@@ -29,6 +35,9 @@ RUN npm install -g prisma@6
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nuxtjs
 
+# Copy runtime dependencies from cached stage (this layer is cached!)
+COPY --from=runtime-deps /app/node_modules ./node_modules
+
 # Copy built app
 COPY --from=builder /app/.output ./.output
 
@@ -37,10 +46,6 @@ COPY --from=deps /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=deps /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=deps /app/node_modules/prisma ./node_modules/prisma
 COPY prisma ./prisma/
-
-# Install runtime dependencies for media processing (sharp, fluent-ffmpeg)
-COPY package.json ./
-RUN npm install --omit=dev sharp fluent-ffmpeg && rm package.json
 
 # Copy entrypoint
 COPY docker-entrypoint.sh ./

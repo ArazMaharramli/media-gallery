@@ -310,43 +310,53 @@ export default defineEventHandler(async (event) => {
 })
 
 // Background video processing - doesn't block the response
-async function processVideoVariantsInBackground(
+function processVideoVariantsInBackground(
   mediaId: string,
   videoPath: string,
   eventDir: string,
   filename: string
-): Promise<void> {
-  try {
-    console.log('Starting background video processing for:', videoPath)
+): void {
+  // Use setImmediate to ensure this runs after the current event loop
+  setImmediate(async () => {
+    try {
+      console.log('[video-processing] Starting for:', { mediaId, videoPath, filename })
 
-    // Generate thumbnail
-    const videoThumbnails = await generateVideoThumbnail(
-      videoPath,
-      eventDir,
-      filename
-    )
-    console.log('Video thumbnail generated:', videoThumbnails.thumbnail)
+      // Verify the video file exists
+      if (!existsSync(videoPath)) {
+        console.error('[video-processing] Video file not found:', videoPath)
+        return
+      }
 
-    // Generate compressed previews
-    console.log('Generating video preview for:', videoPath)
-    const videoPreviews = await generateVideoPreview(
-      videoPath,
-      eventDir,
-      filename
-    )
-    console.log('Video preview generated:', videoPreviews.preview)
+      // Generate thumbnail
+      console.log('[video-processing] Generating thumbnail...')
+      const videoThumbnails = await generateVideoThumbnail(
+        videoPath,
+        eventDir,
+        filename
+      )
+      console.log('[video-processing] Thumbnail generated:', videoThumbnails.thumbnail)
 
-    // Update database with variant paths
-    await db.media.update(mediaId, {
-      thumbnail: videoThumbnails.thumbnail,
-      thumbnailFallback: videoThumbnails.thumbnailFallback,
-      preview: videoPreviews.preview,
-      previewFallback: videoPreviews.previewFallback
-    })
+      // Generate compressed previews
+      console.log('[video-processing] Generating preview videos...')
+      const videoPreviews = await generateVideoPreview(
+        videoPath,
+        eventDir,
+        filename
+      )
+      console.log('[video-processing] Preview generated:', videoPreviews.preview)
 
-    console.log('Video processing complete for:', mediaId)
-  } catch (err) {
-    console.error('Background video processing failed:', err)
-    // Record stays without variants - original will be used as fallback
-  }
+      // Update database with variant paths
+      await db.media.update(mediaId, {
+        thumbnail: videoThumbnails.thumbnail,
+        thumbnailFallback: videoThumbnails.thumbnailFallback,
+        preview: videoPreviews.preview,
+        previewFallback: videoPreviews.previewFallback
+      })
+
+      console.log('[video-processing] Complete for:', mediaId)
+    } catch (err) {
+      console.error('[video-processing] Failed for:', mediaId, err)
+      // Record stays without variants - original will be used as fallback
+    }
+  })
 }
