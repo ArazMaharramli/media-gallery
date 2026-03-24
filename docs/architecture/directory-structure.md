@@ -23,7 +23,7 @@ media-gallery/
 │   │   ├── index.ts               # Barrel export
 │   │   ├── event.schema.ts        # Event validation
 │   │   ├── media.schema.ts        # Media validation
-│   │   ├── token.schema.ts        # Token validation
+│   │   ├── token.schema.ts        # GuestToken validation
 │   │   └── common.schema.ts       # Shared validation rules
 │   └── types/                     # TypeScript types
 │       ├── index.ts               # Barrel export
@@ -41,18 +41,17 @@ media-gallery/
 │   │   │       │   └── index.get.ts
 │   │   │       ├── upload/
 │   │   │       │   └── index.post.ts
-│   │   │       ├── upload-tokens/
-│   │   │       │   ├── index.get.ts
-│   │   │       │   ├── index.post.ts
-│   │   │       │   └── [tokenId]/
-│   │   │       │       └── deactivate.patch.ts
-│   │   │       └── view-tokens/
-│   │   │           ├── index.get.ts
-│   │   │           ├── index.post.ts
+│   │   │       └── guest-tokens/
+│   │   │           ├── index.get.ts     # List all guest tokens
+│   │   │           ├── index.post.ts    # Create guest token
 │   │   │           └── [tokenId]/
 │   │   │               └── revoke.patch.ts
-│   │   ├── gallery/
-│   │   │   └── [token].get.ts     # GET /api/gallery/:token
+│   │   ├── guest/
+│   │   │   ├── [token].get.ts     # GET /api/guest/:token
+│   │   │   └── [token]/
+│   │   │       ├── upload.post.ts # POST /api/guest/:token/upload
+│   │   │       └── media/
+│   │   │           └── [mediaId].delete.ts
 │   │   ├── media/
 │   │   │   └── [id].delete.ts     # DELETE /api/media/:id
 │   │   └── uploads/
@@ -77,14 +76,10 @@ media-gallery/
 │   │   │       └── processor.factory.ts
 │   │   │
 │   │   └── tokens/
-│   │       ├── view-tokens/
-│   │       │   ├── index.ts
-│   │       │   ├── view-tokens.repository.ts
-│   │       │   └── view-tokens.service.ts
-│   │       └── upload-tokens/
+│   │       └── guest-tokens/
 │   │           ├── index.ts
-│   │           ├── upload-tokens.repository.ts
-│   │           └── upload-tokens.service.ts
+│   │           ├── guest-tokens.repository.ts
+│   │           └── guest-tokens.service.ts
 │   │
 │   ├── shared/                    # Shared backend code
 │   │   ├── middleware/
@@ -118,7 +113,7 @@ media-gallery/
 ├── composables/                   # Vue composable functions
 │   ├── useEventMedia.ts           # Media CRUD operations
 │   ├── useMediaUpload.ts          # Upload queue management
-│   ├── useTokenManagement.ts      # Token operations
+│   ├── useTokenManagement.ts      # Guest token operations
 │   ├── useMediaSelection.ts       # Selection mode state
 │   └── useLightbox.ts             # Lightbox state
 │
@@ -128,8 +123,8 @@ media-gallery/
 │   │   ├── EventMediaGrid.vue
 │   │   ├── EventUploader.vue
 │   │   └── tokens/
-│   │       ├── ViewTokenList.vue
-│   │       ├── UploadTokenList.vue
+│   │       ├── GuestTokenList.vue
+│   │       ├── CreateGuestTokenModal.vue
 │   │       └── ShareModal.vue
 │   │
 │   ├── media/                     # Media display components
@@ -146,10 +141,8 @@ media-gallery/
 │   ├── index.vue                  # Home / create event
 │   ├── event/
 │   │   └── [id].vue               # Event dashboard
-│   ├── gallery/
-│   │   └── [token].vue            # Public gallery
-│   └── upload/
-│       └── [token].vue            # Guest upload page
+│   └── guest/
+│       └── [token].vue            # Guest access page (view + upload)
 │
 ├── layouts/
 │   └── default.vue                # Default layout

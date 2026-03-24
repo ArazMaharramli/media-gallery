@@ -1,17 +1,20 @@
 # Guest Features
 
-Guests receive an upload link from the photographer to contribute their own photos and videos.
+Guests receive a guest link from the photographer to access event media and/or upload their own photos and videos.
 
 ---
 
 ## Overview
 
-Guests can:
-- Access upload page via shared upload link or QR code scan
-- Upload photos and videos to the event
-- See upload progress
+Guests can (depending on permissions):
+- Access the guest page via shared link or QR code scan
+- View the event gallery (if `canView` permission)
+- Upload photos and videos (if `canUpload` permission)
+- Delete media (if `canDelete` permission or own uploads)
+- See upload progress with queue management
 - Cancel pending uploads
-- Scan QR code to upload from mobile device
+- Retry failed uploads
+- Always see their own uploads (regardless of view permission)
 
 ---
 
@@ -19,7 +22,7 @@ Guests can:
 
 | ID | Feature | Description | Priority |
 |----|---------|-------------|----------|
-| [G1](./G1-access-upload-page.md) | Access Upload Page | Open upload page via shared link or QR code | High |
+| [G1](./G1-access-upload-page.md) | Access Guest Page | Open guest page via shared link or QR code | High |
 | [G2](./G2-upload-media.md) | Upload Media | Upload photos and videos | High |
 | [G3](./G3-upload-progress.md) | Upload Progress | See progress of uploads | High |
 | [G4](./G4-cancel-upload.md) | Cancel Upload | Cancel pending uploads | Medium |
@@ -32,75 +35,144 @@ Guests can:
 [Receive Link from Photographer]
            |
            v
-[Click Link / Scan QR] ──→ [Invalid/Deactivated?] ──→ [404 Page]
+[Click Link / Scan QR] ──→ [Invalid/Expired?] ──→ [404 Page]
            |
            v
-[Upload Page]
+[Guest Page /guest/:token]
            |
-           ├── [Upload Here Tab] ──→ [Select Files]
-           |                              |
-           |                              v
-           |                      [Files Added to Queue]
-           |                              |
-           |                              v
-           |                      [Upload Complete]
+           ├── [Has canView OR own uploads?]
+           |         |
+           |         v
+           |   [Gallery Tab] ──→ [Browse Media]
+           |         |              |
+           |         |              v
+           |         |        [View/Download]
+           |         |              |
+           |         |              v
+           |         |        [Delete (if permitted)]
            |
-           └── [Scan QR Tab] ──→ [Show QR Code]
-                                      |
-                                      v
-                              [Scan with Phone]
-                                      |
-                                      v
-                              [Upload from Mobile]
+           └── [Has canUpload?]
+                     |
+                     v
+               [Upload Tab] ──→ [Drag & Drop / Click to Upload]
+                     |              |
+                     |              v
+                     |        [Files Added to Queue]
+                     |              |
+                     |              v
+                     |        [Upload Complete]
+                     |              |
+                     |              v
+                     |        [Media Added to Own Uploads]
+                     |
+                     └── [QR Code Section (Desktop)]
+                              |
+                              v
+                        [Scan with Phone]
+                              |
+                              v
+                        [Upload from Mobile]
 ```
+
+---
+
+## Permission-Based Access
+
+| Permission | Gallery Tab | Upload Tab | Delete Own | Delete Others |
+|------------|-------------|------------|------------|---------------|
+| `canView` only | Yes (all media) | No | N/A | No |
+| `canUpload` only | Yes (own uploads only) | Yes | Yes | No |
+| `canView + canUpload` | Yes (all media) | Yes | Yes | No |
+| `canView + canDelete` | Yes (all media) | No | N/A | Yes |
+| All permissions | Yes (all media) | Yes | Yes | Yes |
+
+---
+
+## Guest Page Layout
+
+### With Both View and Upload Permissions
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     John & Jane Wedding                      │
+│                       June 15, 2024                          │
+│        Welcome, Uncle Bob!                                   │
+├─────────────────────────────────────────────────────────────┤
+│  [Gallery (24)]              [Upload]                        │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  (Content based on selected tab)                            │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Upload Tab Layout (Desktop)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                                                             │
+│  ┌─────────────────────────────────┐  │  ┌───────────────┐ │
+│  │                                 │  │  │               │ │
+│  │   Click to upload or drag      │  │  │   [QR CODE]   │ │
+│  │   and drop                     │  │  │               │ │
+│  │                                 │  │  └───────────────┘ │
+│  │   JPG, PNG, GIF, WEBP,         │  │                     │
+│  │   MP4, MOV, WEBM up to 500MB   │  │  Scan to upload     │
+│  │                                 │  │  from mobile        │
+│  └─────────────────────────────────┘  │                     │
+│                                       │  [  Copy Link  ]    │
+│  Upload Queue (2 files)               │                     │
+│  ┌─────────────────────────────────┐  │                     │
+│  │ 🖼 IMG_001.jpg  2.4MB  ████ 80% X │                     │
+│  │ 🎬 VID_002.mp4  45MB  Waiting... │                     │
+│  │ 🖼 IMG_003.jpg  1.8MB  ✓         │                     │
+│  └─────────────────────────────────┘                       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Upload Tab Layout (Mobile)
+
+```
+┌─────────────────────────────────┐
+│                                 │
+│   Click to upload or drag       │
+│   and drop                      │
+│                                 │
+│   JPG, PNG, GIF, WEBP,          │
+│   MP4, MOV, WEBM up to 500MB    │
+│                                 │
+└─────────────────────────────────┘
+
+Upload Queue (2 files)
+┌─────────────────────────────────┐
+│ 🖼 IMG_001.jpg  2.4MB  ███ 80% X│
+│ 🎬 VID_002.mp4  45MB  Waiting...│
+└─────────────────────────────────┘
+```
+
+---
+
+## Upload Queue Features
+
+| Element | Description |
+|---------|-------------|
+| File icon | Blue for images, purple for videos |
+| Filename | Truncated if too long |
+| File size | Formatted (KB/MB) |
+| Progress bar | Blue during upload, shows percentage |
+| Status | "Waiting...", progress %, checkmark, or error |
+| Cancel button | Abort upload in progress |
+| Retry button | Retry failed uploads |
+| Remove button | Remove failed items from queue |
+| Clear completed | Button to remove all completed items |
 
 ---
 
 ## What Guests Cannot Do
 
-- View the gallery or existing media
-- Download media
-- Delete media (including their own uploads)
 - Access photographer dashboard
-- See other guests' uploads
 - Generate new links
-- Access deactivated upload links
-
----
-
-## Upload Page Layout
-
-```
-┌─────────────────────────────────────────────────┐
-│                                                 │
-│            John & Jane Wedding                  │
-│               June 15, 2024                     │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│     Share your photos and videos from the       │
-│     event! Drag files here or click to browse.  │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  [Upload Here]          [Scan QR Code]          │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ┌─────────────────────────────────────────┐   │
-│  │                                         │   │
-│  │   (Upload Zone or QR Code depending     │   │
-│  │    on selected tab)                     │   │
-│  │                                         │   │
-│  └─────────────────────────────────────────┘   │
-│                                                 │
-│  [Copy Link: https://...]        [Copy Button]  │
-│                                                 │
-├─────────────────────────────────────────────────┤
-│  Upload Queue (visible in Upload Here tab)      │
-│  ┌─────────────────────────────────────────┐   │
-│  │ IMG_001.jpg  2.4MB  ████████░░ 80%   X │   │
-│  │ VID_002.mp4  45MB   Waiting...       X │   │
-│  │ IMG_003.jpg  1.8MB  Complete    ✓     │   │
-│  └─────────────────────────────────────────┘   │
-│                                                 │
-└─────────────────────────────────────────────────┘
-```
+- Access deactivated/expired links
+- View media without `canView` permission (except own uploads)
+- Delete media without `canDelete` permission (except own uploads)

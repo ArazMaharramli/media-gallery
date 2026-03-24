@@ -8,56 +8,112 @@
 
 ## Acceptance Criteria
 
-- [ ] Upload tab visible only if token has `canUpload: true`
-- [ ] If token has upload-only permission, upload view shown by default
-- [ ] If token has both view and upload, tab bar allows switching
-- [ ] Drag-and-drop upload zone is available
-- [ ] Click to browse files is available
-- [ ] Multiple file selection is supported
-- [ ] Supported image formats: JPG, JPEG, PNG, GIF, WEBP
-- [ ] Supported video formats: MP4, MOV, WEBM
-- [ ] Maximum file size: 500MB per file
-- [ ] Files upload sequentially (queue, one at a time for max speed)
-- [ ] Upload queue shown as list: icon, filename, size, progress bar
-- [ ] Currently uploading file shows progress percentage
-- [ ] Pending files shown in queue with "waiting" state
-- [ ] Individual uploads can be cancelled before completion
-- [ ] Cancel removes file from queue (if pending) or aborts upload (if in progress)
-- [ ] Success message shown after each upload completes
-- [ ] Media is marked as "guest" upload with `guestTokenId` in database
-- [ ] Guests can delete their own uploads (always permitted)
+- [x] Upload tab visible only if token has `canUpload: true`
+- [x] If token has upload-only permission, upload tab shown by default
+- [x] If token has both view and upload, tab bar allows switching
+- [x] Drag-and-drop upload zone with matching height to QR section
+- [x] Click to browse files is available
+- [x] Multiple file selection is supported
+- [x] Supported image formats: JPG, JPEG, PNG, GIF, WEBP
+- [x] Supported video formats: MP4, MOV, WEBM
+- [x] Maximum file size: 500MB per file
+- [x] Invalid files silently filtered when adding to queue
+- [x] Files upload sequentially (queue, one at a time)
+- [x] Upload queue shown with file icon, filename, size, progress bar
+- [x] File icons: blue for images, purple for videos
+- [x] Currently uploading file shows progress percentage
+- [x] Pending files shown as "Waiting..."
+- [x] Completed files show green checkmark
+- [x] Failed files show error message with retry/remove buttons
+- [x] Individual uploads can be cancelled before completion
+- [x] "Clear completed" button removes finished items from queue
+- [x] Media marked as "guest" upload with `guestTokenId` in database
+- [x] Uploaded media immediately appears in own uploads
+- [x] Guests can always delete their own uploads
 
 ---
 
 ## UI Elements
 
-- Tab bar (Gallery | Upload) - if both permissions enabled
-- Drag & drop zone
-- File browser button
-- Upload queue list
-  - File icon (image/video)
-  - Filename
-  - File size
-  - Progress bar with percentage
-  - Cancel button
-- Success toast/message
-- Error messages with retry option
+### Upload Section (Left Side)
+
+- Drag & drop zone with dashed border
+- Cloud upload icon
+- "Click to upload or drag and drop" text
+- Supported formats text
+- Upload queue list below dropzone
+
+### QR Code Section (Right Side, Desktop Only)
+
+- QR code in bordered container
+- "Scan to upload from mobile" text
+- "Copy Link" button
+
+### Upload Queue Item
+
+```
+┌────────────────────────────────────────────────────────┐
+│ [Icon]  filename.jpg                                   │
+│         2.4 MB                                         │
+│         ████████████░░░░░░░░ 65%                   [X] │
+└────────────────────────────────────────────────────────┘
+```
+
+| Element | Description |
+|---------|-------------|
+| Icon | 🖼 Blue (image) or 🎬 Purple (video) |
+| Filename | Truncated with ellipsis if too long |
+| Size | Formatted file size (KB/MB) |
+| Progress | Bar with percentage (uploading) |
+| Status | "Waiting...", percentage, ✓, or error |
+| Actions | Cancel (X), Retry (↻), Remove (X) |
+
+---
+
+## Upload States
+
+| State | Visual | Actions Available |
+|-------|--------|-------------------|
+| Pending | Gray, "Waiting..." | (queued, no action) |
+| Uploading | Blue progress bar, XX% | Cancel |
+| Completed | Green checkmark | (auto stays in list) |
+| Error | Red, error message | Retry, Remove |
 
 ---
 
 ## API
 
 **Upload Media (Guest):**
-`POST /api/events/:eventId/upload`
+`POST /api/guest/:token/upload`
 
 Headers:
 - Content-Type: multipart/form-data
 
 Body:
 - `file`: The media file
-- `guestToken`: The guest token string (optional, for tracking)
 
-**Note:** The upload endpoint validates the guest token from the request context.
+Response:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "...",
+    "eventId": "...",
+    "guestTokenId": "...",
+    "filename": "abc123.jpg",
+    "originalName": "IMG_001.jpg",
+    "mimeType": "image/jpeg",
+    "size": 2457600,
+    "type": "photo",
+    "uploadedBy": "guest",
+    "thumbnail": "abc123_thumb.webp",
+    "thumbnailFallback": "abc123_thumb.jpg",
+    "preview": "abc123_preview.webp",
+    "previewFallback": "abc123_preview.jpg",
+    "createdAt": "2024-06-15T14:30:00Z"
+  }
+}
+```
 
 ---
 
@@ -69,6 +125,7 @@ Guests can always delete media they uploaded themselves:
 
 - If `media.guestTokenId === guestToken.id`, deletion is allowed
 - No `canDelete` permission required for own uploads
+- Shared media requires `canDelete` permission
 
 ---
 
