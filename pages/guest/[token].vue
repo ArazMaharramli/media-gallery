@@ -54,7 +54,7 @@
         <!-- Toolbar -->
         <div class="flex items-center justify-between mb-4">
           <div class="text-sm text-gray-600">
-            <span class="font-medium">{{ allMedia.length }}</span> items
+            <span class="font-medium">{{ totalMediaCount > 0 ? totalMediaCount : allMedia.length }}</span> items
           </div>
           <div class="flex items-center gap-2">
             <div class="flex items-center bg-gray-100 rounded-lg p-1">
@@ -237,6 +237,20 @@
                 </svg>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- Load More Trigger / Loading Indicator -->
+        <div ref="loadMoreTrigger" class="py-8 flex justify-center">
+          <div v-if="isLoadingMore" class="flex items-center gap-2 text-gray-500">
+            <svg class="animate-spin h-5 w-5" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span class="text-sm">Loading more...</span>
+          </div>
+          <div v-else-if="!hasMoreMedia && allMedia.length > 0" class="text-sm text-gray-400">
+            {{ totalMediaCount }} items total
           </div>
         </div>
       </div>
@@ -597,6 +611,13 @@ const hasCompletedOrError = computed(() =>
   uploadQueue.value.some(f => f.status === 'completed' || f.status === 'error')
 )
 
+// Pagination state
+const currentPage = ref(1)
+const totalMediaCount = ref(0)
+const hasMoreMedia = ref(true)
+const isLoadingMore = ref(false)
+const loadMoreTrigger = ref<HTMLElement | null>(null)
+
 // Lightbox state
 const lightboxOpen = ref(false)
 const currentMediaIndex = ref(0)
@@ -652,6 +673,42 @@ watch(() => response.value?.data?.ownUploads, (newUploads) => {
     ownUploadsList.value = [...newUploads]
   }
 }, { immediate: true })
+
+// Initialize pagination from response
+watch(() => response.value?.data?.pagination, (pagination) => {
+  if (pagination) {
+    totalMediaCount.value = pagination.total
+    hasMoreMedia.value = pagination.hasMore
+    currentPage.value = pagination.page
+  }
+}, { immediate: true })
+
+// Load more media for infinite scroll
+async function loadMoreMedia() {
+  if (isLoadingMore.value || !hasMoreMedia.value || !permissions.value?.canView) return
+
+  isLoadingMore.value = true
+  try {
+    const nextPage = currentPage.value + 1
+    const moreResponse = await $fetch(`/api/guest/${token}`, {
+      params: { page: nextPage, limit: 20 }
+    }) as any
+
+    if (moreResponse?.data?.media) {
+      sharedMediaList.value = [...sharedMediaList.value, ...moreResponse.data.media]
+    }
+
+    if (moreResponse?.data?.pagination) {
+      totalMediaCount.value = moreResponse.data.pagination.total
+      hasMoreMedia.value = moreResponse.data.pagination.hasMore
+      currentPage.value = moreResponse.data.pagination.page
+    }
+  } catch (err) {
+    console.error('Failed to load more media:', err)
+  } finally {
+    isLoadingMore.value = false
+  }
+}
 
 // Set initial tab based on permissions
 watchEffect(() => {
@@ -988,11 +1045,35 @@ function handleKeydown(e: KeyboardEvent) {
 
 onMounted(() => {
   window.addEventListener('keydown', handleKeydown)
+  setupIntersectionObserver()
 })
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
+})
+
+// Set up intersection observer for infinite scroll
+let observer: IntersectionObserver | null = null
+
+function setupIntersectionObserver() {
+  if (!loadMoreTrigger.value) return
+  if (observer) observer.disconnect()
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0].isIntersecting && hasMoreMedia.value && !isLoadingMore.value) {
+        loadMoreMedia()
+      }
+    },
+    { rootMargin: '100px' }
+  )
+
+  observer.observe(loadMoreTrigger.value)
+}
+
+watch(loadMoreTrigger, () => {
+  setupIntersectionObserver()
 })
 
 useHead({
