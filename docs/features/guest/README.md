@@ -8,7 +8,7 @@ Guests receive a guest link from the photographer to access event media and/or u
 
 Guests can (depending on permissions):
 - Access the guest page via shared link or QR code scan
-- View the event gallery (if `canView` permission)
+- View the event gallery with infinite scroll (if `canView` permission)
 - Upload photos and videos (if `canUpload` permission)
 - Delete media (if `canDelete` permission or own uploads)
 - See upload progress with queue management
@@ -26,6 +26,7 @@ Guests can (depending on permissions):
 | [G2](./G2-upload-media.md) | Upload Media | Upload photos and videos | High |
 | [G3](./G3-upload-progress.md) | Upload Progress | See progress of uploads | High |
 | [G4](./G4-cancel-upload.md) | Cancel Upload | Cancel pending uploads | Medium |
+| [G5](./G5-infinite-scroll.md) | Infinite Scroll | Gallery loads more media as user scrolls | High |
 
 ---
 
@@ -43,13 +44,16 @@ Guests can (depending on permissions):
            ├── [Has canView OR own uploads?]
            |         |
            |         v
-           |   [Gallery Tab] ──→ [Browse Media]
+           |   [Gallery Tab] ──→ [Browse Media Grid/List]
            |         |              |
            |         |              v
-           |         |        [View/Download]
+           |         |        [Scroll Down] ──→ [Load More (Infinite Scroll)]
            |         |              |
            |         |              v
-           |         |        [Delete (if permitted)]
+           |         |        [Click Item] ──→ [View in Lightbox]
+           |         |              |
+           |         |              v
+           |         |        [Download / Delete (if permitted)]
            |
            └── [Has canUpload?]
                      |
@@ -150,6 +154,27 @@ Upload Queue (2 files)
 │ 🎬 VID_002.mp4  45MB  Waiting...│
 └─────────────────────────────────┘
 ```
+
+---
+
+## Gallery Features
+
+### Infinite Scroll
+- Media loads in pages of 20 items
+- Automatically loads more when scrolling near the bottom
+- Uses Intersection Observer for performance
+- Shows loading indicator while fetching
+- Displays total count when all media is loaded
+
+### View Modes
+- **Grid View**: Responsive grid (2-5 columns based on screen size)
+- **List View**: Detailed list with filename, type, and size
+
+### Media Display
+- Optimized thumbnails (WebP with JPEG fallback)
+- Video play overlay indicator
+- Lightbox for full-size viewing
+- Keyboard navigation (arrow keys, Escape)
 
 ---
 

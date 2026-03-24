@@ -18,6 +18,9 @@
 - [x] Tab bar shows available tabs based on permissions
 - [x] Gallery tab visible if `canView` OR guest has own uploads
 - [x] Upload tab visible if `canUpload`
+- [x] Gallery supports infinite scroll (loads 20 items per page)
+- [x] Loading indicator shown while fetching more media
+- [x] Total count displayed when all media is loaded
 - [x] QR code displayed in upload tab (desktop only)
 - [x] QR code enables easy mobile upload from phone camera
 - [x] Copy link button available in QR code section
@@ -31,6 +34,7 @@
 - Welcome message with token name (if set)
 - Tab navigation (Gallery | Upload) - based on permissions
 - Gallery view (grid/list toggle)
+- Infinite scroll loading trigger
 - Upload dropzone
 - QR code display (in Upload tab, desktop only)
 - Copy link button
@@ -62,8 +66,14 @@
 
 ## API
 
-**Get Guest Access Info:**
-`GET /api/guest/:token`
+**Get Guest Access Info (with pagination):**
+`GET /api/guest/:token?page=1&limit=20`
+
+Query Parameters:
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `page` | number | 1 | Page number (1-indexed) |
+| `limit` | number | 20 | Items per page (max 100) |
 
 Response:
 ```json
@@ -84,10 +94,22 @@ Response:
     "tokenId": "...",
     "tokenName": "Uncle Bob",
     "media": [...],
-    "ownUploads": [...]
+    "ownUploads": [...],
+    "pagination": {
+      "page": 1,
+      "limit": 20,
+      "total": 150,
+      "totalPages": 8,
+      "hasMore": true
+    }
   }
 }
 ```
+
+**Notes:**
+- `media` array contains paginated shared media (if `canView` permission)
+- `ownUploads` array contains all uploads by this guest token (not paginated)
+- `pagination` object only present if `canView` permission is enabled
 
 ---
 

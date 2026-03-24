@@ -238,33 +238,35 @@ This document illustrates how data flows through the application layers.
 
 ---
 
-## 5. Gallery Access Flow
+## 5. Guest Access Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Client clicks gallery link: /gallery/abc123xyz                     │
+│  Client clicks guest link: /guest/abc123xyz                         │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       NUXT PAGE LOAD                                 │
-│  pages/gallery/[token].vue                                          │
+│  pages/guest/[token].vue                                            │
 │  ─────────────────────────────────────────────────────────────────  │
 │  1. Extract token from route params                                  │
-│  2. Fetch GET /api/gallery/{token}                                  │
+│  2. Fetch GET /api/guest/{token}                                    │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                       API HANDLER                                    │
-│  server/api/gallery/[token].get.ts                                  │
+│  server/api/guest/[token].get.ts                                    │
 │  ─────────────────────────────────────────────────────────────────  │
 │  1. Validate token format                                            │
-│  2. Look up ViewToken in database                                    │
-│  3. If not found or inactive → 404                                  │
+│  2. Look up GuestToken in database                                   │
+│  3. Check if token is active and not expired                        │
 │  4. Get Event details                                                │
-│  5. Get Media items (filtered by mediaIds if selective share)       │
-│  6. Return event + media data                                        │
+│  5. Get Media based on permissions:                                  │
+│     - If canView: return shared media (filtered by mediaIds if set) │
+│     - Always: return own uploads (media with matching guestTokenId) │
+│  6. Return event + permissions + media data                          │
 └─────────────────────────────────────────────────────────────────────┘
                                     │
           ┌─────────────────────────┴─────────────────────────┐
@@ -272,21 +274,30 @@ This document illustrates how data flows through the application layers.
           ▼                                                   ▼
 ┌─────────────────────┐                       ┌─────────────────────────┐
 │  TOKEN NOT FOUND    │                       │  TOKEN VALID            │
-│  ────────────────   │                       │  ─────────────────────  │
-│  Status: 404        │                       │  {                      │
-│  Show error page    │                       │    "event": {...},      │
-└─────────────────────┘                       │    "media": [...]       │
+│  or EXPIRED         │                       │  ─────────────────────  │
+│  ────────────────   │                       │  {                      │
+│  Status: 404        │                       │    "event": {...},      │
+│  Show error page    │                       │    "permissions": {     │
+└─────────────────────┘                       │      "canView": true,   │
+                                              │      "canUpload": true, │
+                                              │      "canDelete": false │
+                                              │    },                   │
+                                              │    "media": [...],      │
+                                              │    "ownUploads": [...]  │
                                               │  }                      │
                                               └─────────────────────────┘
                                                             │
                                                             ▼
                                               ┌─────────────────────────┐
-                                              │  RENDER GALLERY         │
+                                              │  RENDER GUEST PAGE      │
                                               │  ─────────────────────  │
-                                              │  • Display event name   │
-                                              │  • Show media grid      │
-                                              │  • Enable lightbox      │
-                                              │  • Allow downloads      │
+                                              │  Based on permissions:  │
+                                              │  • Gallery tab (canView │
+                                              │    OR has own uploads)  │
+                                              │  • Upload tab (canUpload│
+                                              │    with QR code)        │
+                                              │  • Delete buttons       │
+                                              │    (canDelete or own)   │
                                               └─────────────────────────┘
 ```
 

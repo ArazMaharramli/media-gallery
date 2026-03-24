@@ -32,7 +32,7 @@ This document defines the naming conventions, coding standards, and best practic
 
 ### Directories
 
-- Use lowercase with hyphens for multi-word names: `upload-tokens/`
+- Use lowercase with hyphens for multi-word names: `guest-tokens/`
 - Group by feature, not by type: `features/media/` not `repositories/`
 
 ---
