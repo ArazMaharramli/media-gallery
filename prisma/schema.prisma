@@ -54,17 +54,21 @@ model UploadToken {
 }
 
 model Media {
-  id            String       @id @default(uuid())
-  eventId       String
-  uploadTokenId String?
-  filename      String
-  originalName  String
-  mimeType      String
-  size          BigInt
-  storageKey    String
-  type          MediaType
-  uploadedBy    UploaderType
-  createdAt     DateTime     @default(now())
+  id                String       @id @default(uuid())
+  eventId           String
+  uploadTokenId     String?
+  filename          String
+  originalName      String
+  mimeType          String
+  size              BigInt
+  storageKey        String
+  type              MediaType
+  uploadedBy        UploaderType
+  thumbnail         String?
+  thumbnailFallback String?
+  preview           String?
+  previewFallback   String?
+  createdAt         DateTime     @default(now())
 
   event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
   uploadToken UploadToken? @relation(fields: [uploadTokenId], references: [id], onDelete: SetNull)

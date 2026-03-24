@@ -242,6 +242,48 @@ Returns metadata of uploaded file with generated IDs and URLs.
 
 ---
 
+## Media Serving
+
+### Endpoint
+
+`GET /api/uploads/{eventId}/{filename}`
+
+### Query Parameters
+
+| Parameter | Type | Values | Description |
+|-----------|------|--------|-------------|
+| `variant` | string | `thumbnail`, `preview` | Optional. If omitted, serves original file |
+
+### Variant Behavior
+
+| Variant | Size | Format | Usage |
+|---------|------|--------|-------|
+| (none) | Original | Original | Downloads |
+| `thumbnail` | 300px width | WebP/JPEG | Grid thumbnails |
+| `preview` | 1200px width | WebP/JPEG | Lightbox viewing |
+
+### Format Negotiation
+
+The server checks the `Accept` header to determine format:
+- If `Accept` contains `image/webp` → serves WebP variant
+- Otherwise → serves JPEG fallback
+
+### Fallback Behavior
+
+If requested variant doesn't exist (e.g., legacy uploads, videos):
+- Falls back to original file
+- No error returned
+
+### Response Headers
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `image/webp`, `image/jpeg`, or original MIME type |
+| `Content-Length` | File size in bytes |
+| `Cache-Control` | `public, max-age=31536000` |
+
+---
+
 ## Pagination
 
 For list endpoints returning many items:

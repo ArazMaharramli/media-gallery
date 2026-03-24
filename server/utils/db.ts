@@ -149,6 +149,10 @@ export const db = {
       storageKey: string
       type: 'photo' | 'video'
       uploadedBy: 'photographer' | 'guest'
+      thumbnail?: string | null
+      thumbnailFallback?: string | null
+      preview?: string | null
+      previewFallback?: string | null
     }) => {
       const media = await prisma.media.create({
         data: {
@@ -160,7 +164,11 @@ export const db = {
           size: BigInt(data.size),
           storageKey: data.storageKey,
           type: data.type,
-          uploadedBy: data.uploadedBy
+          uploadedBy: data.uploadedBy,
+          thumbnail: data.thumbnail ?? null,
+          thumbnailFallback: data.thumbnailFallback ?? null,
+          preview: data.preview ?? null,
+          previewFallback: data.previewFallback ?? null
         }
       })
       return serializeMedia(media)
@@ -174,6 +182,18 @@ export const db = {
       } catch {
         return false
       }
+    },
+    update: async (id: string, data: {
+      thumbnail?: string | null
+      thumbnailFallback?: string | null
+      preview?: string | null
+      previewFallback?: string | null
+    }) => {
+      const media = await prisma.media.update({
+        where: { id },
+        data
+      })
+      return serializeMedia(media)
     }
   }
 }

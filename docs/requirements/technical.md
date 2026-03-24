@@ -14,6 +14,17 @@ This document outlines the technology stack, constraints, and deployment require
 | Styling | Tailwind CSS | 3.x | Utility-first, rapid development |
 | Package Manager | npm | Latest | Standard Node.js package manager |
 
+### Image Processing
+| Component | Technology | Version | Rationale |
+|-----------|------------|---------|-----------|
+| Image Library | Sharp | Latest | High-performance image processing, WebP support |
+
+### Video Processing
+| Component | Technology | Version | Rationale |
+|-----------|------------|---------|-----------|
+| Video Library | fluent-ffmpeg | Latest | FFmpeg wrapper for video frame extraction |
+| System Dependency | FFmpeg | Latest | Required for video thumbnail generation (included in Docker image) |
+
 ### Database
 | Component | Technology | Version | Rationale |
 |-----------|------------|---------|-----------|
@@ -41,7 +52,21 @@ This document outlines the technology stack, constraints, and deployment require
 - **Maximum file size:** 500MB per file
 - **Supported image formats:** JPG, JPEG, PNG, GIF, WEBP
 - **Supported video formats:** MP4, MOV, WEBM
-- **Storage:** Files stored in MinIO, not local filesystem
+- **Storage:** Files stored in local filesystem (`./uploads/{eventId}/`)
+
+### Media Optimization (Images)
+- **Thumbnail generation:** 300px width, WebP + JPEG fallback
+- **Preview generation:** 1200px width, WebP + JPEG fallback
+- **Original files:** Preserved for download
+- **WebP quality:** 80%
+- **JPEG fallback quality:** 85%
+- **Browser fallback:** Automatic WebP/JPEG based on Accept header
+
+### Media Optimization (Videos)
+- **Video thumbnail:** Frame extracted at 1 second, 300px width
+- **Thumbnail formats:** WebP + JPEG fallback
+- **Original videos:** Preserved (no transcoding)
+- **System requirement:** FFmpeg must be installed on server
 
 ### Security
 - **No authentication:** Access controlled by link tokens only
@@ -52,7 +77,7 @@ This document outlines the technology stack, constraints, and deployment require
 ### Functionality
 - **No bulk download:** Individual file downloads only
 - **No user accounts:** No registration or login
-- **No media processing:** No resizing, compression, or transcoding (MVP)
+- **No video transcoding:** Videos served as-is (images optimized only)
 
 ---
 

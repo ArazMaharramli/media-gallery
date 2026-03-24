@@ -344,7 +344,7 @@
 
       <!-- Download Button -->
       <a
-        :href="getMediaUrl(currentMedia)"
+        :href="getDownloadUrl(currentMedia)"
         :download="currentMedia.originalName"
         class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
         title="Download"
@@ -387,7 +387,7 @@
 
       <!-- Image -->
       <img
-        :src="getMediaUrl(currentMedia)"
+        :src="getPreviewUrl(currentMedia)"
         :alt="currentMedia.originalName"
         class="max-h-[90vh] max-w-[90vw] object-contain"
       />
@@ -416,7 +416,7 @@
 
       <!-- Download Button -->
       <a
-        :href="getMediaUrl(currentMedia)"
+        :href="getDownloadUrl(currentMedia)"
         :download="currentMedia.originalName"
         class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
         title="Download"
@@ -440,7 +440,7 @@
       <!-- Video Player -->
       <video
         ref="videoPlayerRef"
-        :src="getMediaUrl(currentMedia)"
+        :src="getPreviewUrl(currentMedia)"
         controls
         autoplay
         class="max-h-[90vh] max-w-[90vw]"
@@ -778,16 +778,21 @@
         >
           <!-- Thumbnail -->
           <img
-            v-if="item.type === 'photo'"
-            :src="getMediaUrl(item)"
+            :src="getThumbnailUrl(item)"
             :alt="item.originalName"
             class="absolute inset-0 w-full h-full object-cover"
+            @error="handleThumbnailError($event, item)"
           />
-          <div v-else class="absolute inset-0 flex items-center justify-center bg-gray-900">
-            <svg class="w-12 h-12 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
+          <!-- Video play overlay (only for videos) -->
+          <div
+            v-if="item.type === 'video'"
+            class="absolute inset-0 flex items-center justify-center pointer-events-none"
+          >
+            <div class="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+              <svg class="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+            </div>
           </div>
 
           <!-- Selection Overlay (visible when selected) -->
@@ -897,16 +902,21 @@
           <!-- Thumbnail -->
           <div class="relative w-16 h-16 flex-shrink-0 bg-gray-200 rounded-md overflow-hidden">
             <img
-              v-if="item.type === 'photo'"
-              :src="getMediaUrl(item)"
+              :src="getThumbnailUrl(item)"
               :alt="item.originalName"
               class="w-full h-full object-cover"
+              @error="handleThumbnailError($event, item)"
             />
-            <div v-else class="w-full h-full flex items-center justify-center bg-gray-900">
-              <svg class="w-6 h-6 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            <!-- Video play overlay -->
+            <div
+              v-if="item.type === 'video'"
+              class="absolute inset-0 flex items-center justify-center pointer-events-none"
+            >
+              <div class="w-6 h-6 rounded-full bg-black/50 flex items-center justify-center">
+                <svg class="w-3 h-3 text-white ml-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+              </div>
             </div>
           </div>
 
@@ -1200,8 +1210,38 @@ function getUploaderName(tokenId: string | null): string | null {
   return token?.name || null
 }
 
-function getMediaUrl(item: Media): string {
-  return `/api/uploads/${item.eventId}/${item.filename}`
+function getMediaUrl(item: Media, variant?: 'thumbnail' | 'preview'): string {
+  const baseUrl = `/api/uploads/${item.eventId}`
+
+  // Use stored variant paths from API response
+  if (variant === 'thumbnail' && item.thumbnail) {
+    return `${baseUrl}/${item.thumbnail}`
+  }
+  if (variant === 'preview' && item.preview) {
+    return `${baseUrl}/${item.preview}`
+  }
+
+  // Fallback to original file
+  return `${baseUrl}/${item.filename}`
+}
+
+function getThumbnailUrl(item: Media): string {
+  return getMediaUrl(item, 'thumbnail')
+}
+
+function getPreviewUrl(item: Media): string {
+  return getMediaUrl(item, 'preview')
+}
+
+function getDownloadUrl(item: Media): string {
+  return getMediaUrl(item) // Original, no variant
+}
+
+function handleThumbnailError(event: Event, item: Media) {
+  // If thumbnail fails to load, hide the image and show placeholder
+  const img = event.target as HTMLImageElement
+  img.style.display = 'none'
+  // The parent container's background color will show as placeholder
 }
 
 // Lightbox functions
