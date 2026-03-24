@@ -36,6 +36,7 @@ export default defineEventHandler(async (event) => {
     tokenId: string
     tokenName: string | null
     media?: any[]
+    ownUploads?: any[]
   } = {
     event: {
       id: guestToken.event.id,
@@ -52,7 +53,13 @@ export default defineEventHandler(async (event) => {
     tokenName: guestToken.name
   }
 
-  // Only include media if canView is enabled
+  // Always fetch own uploads (media uploaded by this guest token)
+  const ownUploads = await db.media.findByGuestTokenId(guestToken.id)
+  if (ownUploads.length > 0) {
+    response.ownUploads = ownUploads
+  }
+
+  // Include shared media if canView is enabled
   if (guestToken.canView) {
     let media: any[]
 
