@@ -10,10 +10,9 @@ Photographers can:
 - Create events with name, date, and description
 - Upload photos and videos
 - View and manage uploaded media
-- Generate shareable view links for clients
-- Generate upload request links for guests
+- Generate shareable guest links with customizable permissions
+- Revoke guest links to prevent access
 - Delete media
-- Deactivate upload links
 
 ---
 
@@ -26,9 +25,39 @@ Photographers can:
 | [P3](./P3-upload-media.md) | Upload Media | Upload photos and videos | High |
 | [P4](./P4-view-media.md) | View Media | Lightbox and video player | High |
 | [P5](./P5-delete-media.md) | Delete Media | Remove uploaded media | Medium |
-| [P6](./P6-share-gallery.md) | Share Gallery | Generate view links for clients | High |
-| [P7](./P7-request-upload.md) | Request Upload | Generate upload links for guests | Medium |
-| [P8](./P8-deactivate-upload-link.md) | Deactivate Upload Link | Disable upload links | Low |
+| [P6](./P6-share-gallery.md) | Share Gallery | Generate guest links with permissions | High |
+| [P8](./P8-deactivate-upload-link.md) | Revoke Guest Link | Disable guest links | Low |
+
+---
+
+## Guest Links
+
+Guest links are unified access tokens that can have any combination of permissions:
+
+| Permission | Description |
+|------------|-------------|
+| `canView` | View and download media |
+| `canUpload` | Upload new media |
+| `canDelete` | Delete shared media (guests can always delete their own uploads) |
+
+### Creating Guest Links
+
+**Quick Share:**
+- Click "Share" dropdown → "Share"
+- Creates view-only link instantly
+- Link copied to clipboard
+
+**Share with Permissions:**
+- Click "Share" dropdown → "Share with permissions"
+- Set custom permissions
+- Optionally name the link
+- Select specific media (selective sharing)
+
+### Managing Guest Links
+
+- View active links in the "Links" tab
+- Copy link to clipboard
+- Revoke to disable access
 
 ---
 
@@ -43,15 +72,14 @@ Photographers can:
      v                                                |
 [Event Dashboard] ←───────────────────────────────────┘
      |
-     ├── [Upload Media] → [View in Grid]
+     ├── [Media Tab] → [View in Grid] → [Lightbox/Player]
      |
-     ├── [Click Media] → [Lightbox/Player] → [Download]
+     ├── [Upload Tab] → [Upload Media]
      |
-     ├── [Delete Media] → [Confirm] → [Remove]
+     ├── [Links Tab] → [View/Copy/Revoke Links]
      |
-     ├── [Share] → [Copy Link] → [Send to Client]
-     |
-     └── [Request Upload] → [Copy Link] → [Send to Guest]
-              |
-              └── [Deactivate] → [Link Disabled]
+     └── [Share Button] → [Quick Share] or [Share with Permissions]
+                              |
+                              v
+                    [Guest receives link] → /guest/{token}
 ```

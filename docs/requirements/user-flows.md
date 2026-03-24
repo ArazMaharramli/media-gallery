@@ -44,7 +44,7 @@ START
 [On Event Dashboard]
   |
   v
-[Click Upload Zone or drag files]
+[Click Upload tab or drag files]
   |
   v
 [Select files from device]
@@ -82,7 +82,7 @@ END
 START
   |
   v
-[View media grid on dashboard]
+[View media grid on Media tab]
   |
   v
 [Click on media item]
@@ -105,7 +105,7 @@ END
 
 ### 1.4 Share Links
 
-#### Share Gallery (View Link)
+#### Quick Share (View-Only)
 
 ```
 START
@@ -114,26 +114,31 @@ START
 [On Event Dashboard]
   |
   v
-[Click "Share" button]
+[Click "Share" dropdown]
   |
   v
-[System generates new view token]
+[Click "Share"]
+  |
+  v
+[System generates guest token with canView: true]
   - Token saved to database
-  - Multiple tokens can exist per event
   |
   v
-[View link copied to clipboard]
-  - Format: /gallery/{newToken}
-  - Toast notification confirms copy
+[Link copied to clipboard]
+  - Format: /guest/{newToken}
+  - Toast: "Share link created and copied"
   |
   v
-[Send link to client via email/messenger]
+[Share modal displays link]
+  |
+  v
+[Send link to recipient]
   |
   v
 END
 ```
 
-#### Request Upload (Upload Link)
+#### Share with Permissions
 
 ```
 START
@@ -142,27 +147,62 @@ START
 [On Event Dashboard]
   |
   v
-[Click "Request Upload" button]
+[Click "Share" dropdown]
   |
   v
-[System generates new upload token]
-  - Token saved to database
-  - Multiple tokens can exist per event
-  - Token is active by default
+[Click "Share with permissions"]
   |
   v
-[Upload link copied to clipboard]
-  - Format: /upload/{newToken}
-  - Toast notification confirms copy
+[Modal opens with options:]
+  - Link name (optional)
+  - Can view and download (checkbox)
+  - Can upload new media (checkbox)
+  - Can delete shared media (checkbox)
   |
   v
-[Send link to guests via email/messenger]
+[Click "Create Link"]
+  |
+  v
+[System generates guest token with selected permissions]
+  |
+  v
+[Link copied to clipboard]
+  - Format: /guest/{newToken}
+  - Toast: "Guest link created and copied"
   |
   v
 END
 ```
 
-#### Deactivate Upload Link
+#### Selective Sharing
+
+```
+START
+  |
+  v
+[On Event Dashboard, Media tab]
+  |
+  v
+[Enter selection mode]
+  |
+  v
+[Select specific media items]
+  |
+  v
+[Share button shows: "Share (X Selected)"]
+  |
+  v
+[Click "Share" or "Share with permissions"]
+  |
+  v
+[Token created with mediaIds[] restriction]
+  - Only selected media visible to guest
+  |
+  v
+END
+```
+
+#### Revoke Guest Link
 
 ```
 START
@@ -171,17 +211,18 @@ START
 [On Event Dashboard]
   |
   v
-[View list of upload tokens]
-  - Shows token, creation date, status
+[Click "Links" tab]
   |
   v
-[Click "Deactivate" on a token]
+[View list of active guest links]
+  - Shows: name, token, permissions, date
   |
   v
-[Confirmation prompt]
+[Click "Revoke" on a token]
   |
   v
 [Token marked as inactive]
+  - Link removed from active list
   - Guests with this link see 404
   - Existing uploads not affected
   |
@@ -191,47 +232,58 @@ END
 
 ---
 
-## 2. Client Flow
+## 2. Guest Flow
 
-Clients receive the view link from the photographer to browse and download media.
+Guests receive a link from the photographer to access the event.
 
-### 2.1 Access Gallery
+### 2.1 Access Guest Page
 
 ```
 START
   |
   v
-[Click shared view link]
+[Click shared guest link]
   |
   v
 [System validates token]
   |
   +---> [Invalid] --> [Show 404 page]
   |
-  v
-[Valid] --> [Load gallery page]
+  +---> [Revoked] --> [Show 404 page]
+  |
+  +---> [Expired] --> [Show 404 page]
   |
   v
-[Display:]
-  - Event name, date & description
-  - Media grid (photos & videos)
+[Valid & Active] --> [Load guest page]
+  |
+  v
+[Display based on permissions:]
+  - canView: Show gallery with media grid
+  - canUpload: Show upload tab/zone
+  - Both: Show tab bar to switch
   |
   v
 END
 ```
 
-### 2.2 View Media
+### 2.2 View Gallery (if canView)
 
 ```
 START
   |
   v
-[On Gallery Page]
+[On Guest Page with canView]
+  |
+  v
+[Display:]
+  - Event name, date & description
+  - Media grid (photos & videos)
+  - If mediaIds restricted: only those items
   |
   v
 [Scroll through media grid]
-  - Lazy loading for performance
   - Thumbnails displayed
+  - View mode toggle (grid/list)
   |
   v
 [Click on photo]
@@ -242,6 +294,7 @@ START
   - Navigation arrows (prev/next)
   - Close button
   - Download button
+  - Delete button (if canDelete or own upload)
   |
   v
 [Click on video]
@@ -250,14 +303,73 @@ START
 [Open video player]
   - Play/pause controls
   - Progress bar
-  - Fullscreen option
   - Download button
+  - Delete button (if canDelete or own upload)
   |
   v
 END
 ```
 
-### 2.3 Download Media
+### 2.3 Upload Media (if canUpload)
+
+```
+START
+  |
+  v
+[On Guest Page with canUpload]
+  |
+  v
+[Click upload zone or drag files]
+  |
+  v
+[Select files from device]
+  - Supported: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM
+  - Multiple files allowed
+  |
+  v
+[Files upload with progress indicator]
+  - Media marked with guestTokenId
+  |
+  v
+[Upload complete]
+  - Success message displayed
+  - If canView: media appears in gallery
+  |
+  v
+END
+```
+
+### 2.4 Delete Media
+
+```
+START
+  |
+  v
+[On Guest Page]
+  |
+  v
+[Click delete button on media]
+  |
+  v
+[System checks permission:]
+  |
+  +---> [Own upload (guestTokenId matches)] --> [Allow delete]
+  |
+  +---> [Shared media + canDelete: true] --> [Allow delete]
+  |
+  +---> [Shared media + canDelete: false] --> [Show error]
+  |
+  v
+[If allowed:]
+  - Confirmation prompt
+  - Media deleted
+  - Removed from view
+  |
+  v
+END
+```
+
+### 2.5 Download Media (if canView)
 
 ```
 START
@@ -279,68 +391,6 @@ END
 
 ---
 
-## 3. Guest Flow
-
-Guests receive the upload link to contribute media from their own devices.
-
-### 3.1 Access Upload Page
-
-```
-START
-  |
-  v
-[Click shared upload link]
-  |
-  v
-[System validates upload token]
-  |
-  +---> [Invalid] --> [Show 404 page]
-  |
-  +---> [Deactivated] --> [Show 404 page]
-  |
-  v
-[Valid & Active] --> [Load upload page]
-  |
-  v
-[Display:]
-  - Event name
-  - Upload zone
-  - Instructions
-  |
-  v
-END
-```
-
-### 3.2 Upload Media
-
-```
-START
-  |
-  v
-[On Upload Page]
-  |
-  v
-[Click upload zone or drag files]
-  |
-  v
-[Select files from device]
-  - Supported: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM
-  - Multiple files allowed
-  |
-  v
-[Files upload with progress indicator]
-  |
-  v
-[Upload complete]
-  - Success message displayed
-  - Option to upload more
-  |
-  v
-END
-```
-
----
-
 ## User Flow Diagram (Overview)
 
 ```
@@ -354,21 +404,36 @@ END
       [Create Event]              [Upload Media]
               |                           |
               v                           v
-      [Get Links]                 [Manage Media]
+    [Event Dashboard]             [Manage Media]
               |
-    +---------+---------+
-    |                   |
-    v                   v
-[View Link]       [Upload Link]
-    |                   |
-    v                   v
-+---------+       +---------+
-| Client  |       |  Guest  |
-+---------+       +---------+
-    |                   |
-    v                   v
-[View Gallery]    [Upload Media]
-    |
-    v
-[Download Files]
+              v
+   [Share Dropdown] ──────────────────────────┐
+              |                                |
+    +---------+---------+                      |
+    |                   |                      |
+    v                   v                      |
+[Quick Share]   [Share with Perms]             |
+    |                   |                      |
+    +--------+----------+                      |
+             |                                 |
+             v                                 |
+    [Guest Link Created] ─────────────────────>|
+             |                                 |
+             v                                 |
+    +-----------------+                        |
+    |     Guest       |                        |
+    +-----------------+                        |
+             |                                 |
+    +--------+--------+                        |
+    |        |        |                        |
+    v        v        v                        |
+ [View]  [Upload] [Delete]                     |
+    |        |        |                        |
+    v        |        |                        |
+[Download]   |        |                        |
+             |        |                        |
+             +--------+------------------------+
+                      |
+                      v
+              [Links Tab: Revoke]
 ```

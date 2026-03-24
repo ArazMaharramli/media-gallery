@@ -1,13 +1,16 @@
-# G2: Upload Media
+# G2: Upload Media (Guest)
 
-**Description:** Upload photos and videos to the event.
+**Description:** Upload photos and videos to the event via guest link.
 
-**Entry Point:** Upload page upload zone
+**Entry Point:** Guest page with upload permission (`/guest/:token`)
 
 ---
 
 ## Acceptance Criteria
 
+- [ ] Upload tab visible only if token has `canUpload: true`
+- [ ] If token has upload-only permission, upload view shown by default
+- [ ] If token has both view and upload, tab bar allows switching
 - [ ] Drag-and-drop upload zone is available
 - [ ] Click to browse files is available
 - [ ] Multiple file selection is supported
@@ -21,12 +24,14 @@
 - [ ] Individual uploads can be cancelled before completion
 - [ ] Cancel removes file from queue (if pending) or aborts upload (if in progress)
 - [ ] Success message shown after each upload completes
-- [ ] Media is marked as "guest" upload in database
+- [ ] Media is marked as "guest" upload with `guestTokenId` in database
+- [ ] Guests can delete their own uploads (always permitted)
 
 ---
 
 ## UI Elements
 
+- Tab bar (Gallery | Upload) - if both permissions enabled
 - Drag & drop zone
 - File browser button
 - Upload queue list
@@ -42,4 +47,31 @@
 
 ## API
 
-`POST /api/upload/guest/:token`
+**Upload Media (Guest):**
+`POST /api/events/:eventId/upload`
+
+Headers:
+- Content-Type: multipart/form-data
+
+Body:
+- `file`: The media file
+- `guestToken`: The guest token string (optional, for tracking)
+
+**Note:** The upload endpoint validates the guest token from the request context.
+
+---
+
+## Delete Own Uploads
+
+Guests can always delete media they uploaded themselves:
+
+`DELETE /api/guest/:token/media/:mediaId`
+
+- If `media.guestTokenId === guestToken.id`, deletion is allowed
+- No `canDelete` permission required for own uploads
+
+---
+
+## Page
+
+`/guest/:token` (Upload tab)
