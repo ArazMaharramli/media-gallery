@@ -12,217 +12,244 @@
       </p>
     </div>
 
-    <!-- Permission-based Tabs -->
-    <div v-if="permissions?.canView && permissions?.canUpload" class="flex justify-center">
-      <div class="inline-flex rounded-lg bg-gray-100 p-1">
-        <button
-          @click="activeTab = 'gallery'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-            activeTab === 'gallery'
-              ? 'bg-white shadow-sm text-indigo-600'
-              : 'text-gray-500 hover:text-gray-700'
-          ]"
-        >
-          <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          View Gallery
-        </button>
-        <button
-          @click="activeTab = 'upload'"
-          :class="[
-            'px-4 py-2 text-sm font-medium rounded-md transition-colors',
-            activeTab === 'upload'
-              ? 'bg-white shadow-sm text-indigo-600'
-              : 'text-gray-500 hover:text-gray-700'
-          ]"
-        >
-          <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-          </svg>
-          Upload
-        </button>
-      </div>
-    </div>
-
-    <!-- Gallery View (when canView and showing gallery tab) -->
-    <template v-if="permissions?.canView && (activeTab === 'gallery' || !permissions?.canUpload)">
-      <!-- Toolbar -->
-      <div class="flex items-center justify-between bg-white rounded-lg shadow-sm border px-4 py-3">
-        <div class="text-sm text-gray-600">
-          <span class="font-medium">{{ media.length }}</span> items
-        </div>
-        <div class="flex items-center gap-2">
-          <div class="flex items-center bg-gray-100 rounded-lg p-1">
-            <button
-              @click="viewMode = 'grid'"
-              :class="[
-                'p-2 rounded-md transition-colors',
-                viewMode === 'grid'
-                  ? 'bg-white shadow-sm text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              ]"
-              title="Grid view"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
-              </svg>
-            </button>
-            <button
-              @click="viewMode = 'list'"
-              :class="[
-                'p-2 rounded-md transition-colors',
-                viewMode === 'list'
-                  ? 'bg-white shadow-sm text-indigo-600'
-                  : 'text-gray-500 hover:text-gray-700'
-              ]"
-              title="List view"
-            >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Empty State -->
-      <div v-if="media.length === 0" class="text-center py-12 bg-white rounded-lg shadow-sm border">
-        <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-        <p class="mt-2 text-sm text-gray-500">No media in this gallery yet</p>
-      </div>
-
-      <!-- Grid View -->
-      <div v-else-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-        <div
-          v-for="(item, index) in media"
-          :key="item.id"
-          @click="openLightbox(index)"
-          class="group relative aspect-square bg-gray-100 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 hover:ring-offset-2 transition-all"
-        >
-          <img
-            v-if="item.type === 'photo'"
-            :src="getMediaUrl(item)"
-            :alt="item.originalName"
-            class="absolute inset-0 w-full h-full object-cover"
-          />
-          <div v-else class="absolute inset-0 flex items-center justify-center bg-gray-900">
-            <svg class="w-12 h-12 text-white opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <div
-            v-if="item.type === 'video'"
-            class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
-          >
-            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-            </svg>
-            Video
-          </div>
-          <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-            <span class="p-2 bg-white rounded-full shadow-lg">
-              <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </span>
-          </div>
+    <!-- Main Content Card with Tabs -->
+    <div class="bg-white rounded-lg shadow-sm border">
+      <!-- Tab Bar -->
+      <div class="border-b border-gray-200">
+        <nav class="flex -mb-px">
           <button
-            v-if="permissions?.canDelete"
-            @click.stop="deleteMedia(item.id)"
-            :disabled="deletingMediaId === item.id"
-            class="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 disabled:opacity-50"
-            title="Delete"
+            v-if="permissions?.canView"
+            @click="activeTab = 'gallery'"
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="activeTab === 'gallery' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
           >
-            <svg v-if="deletingMediaId !== item.id" class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-            </svg>
-            <svg v-else class="w-4 h-4 text-red-600 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Gallery
+              <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                {{ media.length }}
+              </span>
+            </span>
           </button>
-        </div>
+          <button
+            v-if="permissions?.canUpload"
+            @click="activeTab = 'upload'"
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="activeTab === 'upload' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          >
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              Upload
+            </span>
+          </button>
+        </nav>
       </div>
 
-      <!-- List View -->
-      <div v-else class="bg-white rounded-lg shadow-sm border divide-y">
-        <div
-          v-for="(item, index) in media"
-          :key="item.id"
-          @click="openLightbox(index)"
-          class="flex items-center gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-        >
-          <div class="w-16 h-16 bg-gray-100 rounded-lg flex-shrink-0 overflow-hidden">
-            <img
-              v-if="item.type === 'photo'"
-              :src="getMediaUrl(item)"
-              :alt="item.originalName"
-              class="w-full h-full object-cover"
-            />
-            <div v-else class="w-full h-full flex items-center justify-center bg-gray-900 text-white">
-              <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
-            <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
-              <span class="inline-flex items-center gap-1">
-                {{ item.type === 'video' ? 'Video' : 'Photo' }}
-              </span>
-              <span>{{ formatFileSize(item.size) }}</span>
-            </div>
+      <!-- Gallery Tab Content -->
+      <div v-if="permissions?.canView && activeTab === 'gallery'" class="p-6">
+        <!-- Toolbar -->
+        <div class="flex items-center justify-between mb-4">
+          <div class="text-sm text-gray-600">
+            <span class="font-medium">{{ media.length }}</span> items
           </div>
           <div class="flex items-center gap-2">
-            <a
-              :href="getMediaUrl(item)"
-              :download="item.originalName"
-              @click.stop
-              class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
-              title="Download"
+            <div class="flex items-center bg-gray-100 rounded-lg p-1">
+              <button
+                @click="viewMode = 'grid'"
+                :class="[
+                  'p-2 rounded-md transition-colors',
+                  viewMode === 'grid'
+                    ? 'bg-white shadow-sm text-indigo-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                ]"
+                title="Grid view"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+              </button>
+              <button
+                @click="viewMode = 'list'"
+                :class="[
+                  'p-2 rounded-md transition-colors',
+                  viewMode === 'list'
+                    ? 'bg-white shadow-sm text-indigo-600'
+                    : 'text-gray-500 hover:text-gray-700'
+                ]"
+                title="List view"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Empty State -->
+        <div v-if="media.length === 0" class="text-center py-12">
+          <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <p class="mt-2 text-sm text-gray-500">No media in this gallery yet</p>
+        </div>
+
+        <!-- Grid View -->
+        <div v-else-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div
+            v-for="(item, index) in media"
+            :key="item.id"
+            @click="openLightbox(index)"
+            class="group relative aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 hover:ring-offset-2 transition-all"
+          >
+            <!-- Thumbnail Image -->
+            <img
+              v-if="!shouldShowPlaceholder(item) && getThumbnailUrl(item)"
+              :src="getThumbnailUrl(item)"
+              :alt="item.originalName"
+              class="absolute inset-0 w-full h-full object-cover"
+              @error="handleThumbnailError(item)"
+            />
+
+            <!-- Placeholder for videos without thumbnails or failed loads -->
+            <div
+              v-if="shouldShowPlaceholder(item)"
+              class="absolute inset-0 flex items-center justify-center bg-gray-200"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              <svg v-if="item.type === 'video'" class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
               </svg>
-            </a>
+              <svg v-else class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+
+            <!-- Video play overlay -->
+            <div
+              v-if="item.type === 'video'"
+              class="absolute inset-0 flex items-center justify-center pointer-events-none"
+            >
+              <div class="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
+                <svg class="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                </svg>
+              </div>
+            </div>
+
+            <div
+              v-if="item.type === 'video'"
+              class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
+            >
+              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+              </svg>
+              Video
+            </div>
+            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
+              <span class="p-2 bg-white rounded-full shadow-lg">
+                <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                </svg>
+              </span>
+            </div>
             <button
-              v-if="permissions?.canDelete"
+              v-if="canDeleteItem(item)"
               @click.stop="deleteMedia(item.id)"
               :disabled="deletingMediaId === item.id"
-              class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+              class="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 disabled:opacity-50"
               title="Delete"
             >
-              <svg v-if="deletingMediaId !== item.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-if="deletingMediaId !== item.id" class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg v-else class="w-4 h-4 text-red-600 animate-spin" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
             </button>
           </div>
         </div>
-      </div>
-    </template>
 
-    <!-- Upload View (when canUpload and showing upload tab) -->
-    <template v-if="permissions?.canUpload && (activeTab === 'upload' || !permissions?.canView)">
-      <div class="max-w-2xl mx-auto">
-        <div class="bg-blue-50 rounded-lg p-4 mb-6">
-          <p class="text-blue-800 text-center">
-            Share your photos and videos from the event! Drag files here or click to browse.
-          </p>
+        <!-- List View -->
+        <div v-else class="divide-y border rounded-lg overflow-hidden">
+          <div
+            v-for="(item, index) in media"
+            :key="item.id"
+            @click="openLightbox(index)"
+            class="flex items-center gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
+          >
+            <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
+              <img
+                v-if="!shouldShowPlaceholder(item) && getThumbnailUrl(item)"
+                :src="getThumbnailUrl(item)"
+                :alt="item.originalName"
+                class="w-full h-full object-cover"
+                @error="handleThumbnailError(item)"
+              />
+              <div v-else class="w-full h-full flex items-center justify-center">
+                <svg v-if="item.type === 'video'" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                </svg>
+                <svg v-else class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+              <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
+                <span class="inline-flex items-center gap-1">
+                  {{ item.type === 'video' ? 'Video' : 'Photo' }}
+                </span>
+                <span>{{ formatFileSize(item.size) }}</span>
+              </div>
+            </div>
+            <div class="flex items-center gap-2">
+              <a
+                :href="getMediaUrl(item)"
+                :download="item.originalName"
+                @click.stop
+                class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
+                title="Download"
+              >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+              </a>
+              <button
+                v-if="canDeleteItem(item)"
+                @click.stop="deleteMedia(item.id)"
+                :disabled="deletingMediaId === item.id"
+                class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
+                title="Delete"
+              >
+                <svg v-if="deletingMediaId !== item.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </button>
+            </div>
+          </div>
         </div>
+      </div>
 
-        <div class="bg-white rounded-lg shadow-sm border p-6">
+      <!-- Upload Tab Content -->
+      <div v-if="permissions?.canUpload && activeTab === 'upload'" class="p-6">
+        <div class="max-w-2xl mx-auto">
+          <div class="bg-blue-50 rounded-lg p-4 mb-6">
+            <p class="text-blue-800 text-center">
+              Share your photos and videos from the event! Drag files here or click to browse.
+            </p>
+          </div>
+
           <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-indigo-400 transition-colors cursor-pointer">
             <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
@@ -234,40 +261,40 @@
               JPG, PNG, GIF, WEBP, MP4, MOV, WEBM up to 500MB
             </p>
           </div>
-        </div>
 
-        <!-- QR Code Section -->
-        <div class="mt-6 bg-white rounded-lg shadow-sm border p-6 text-center">
-          <ClientOnly>
-            <div class="inline-block p-4 bg-white border rounded-xl shadow-sm">
-              <QRCodeVue :value="guestUrl" :size="160" level="M" />
-            </div>
-            <template #fallback>
-              <div class="w-[160px] h-[160px] mx-auto bg-gray-100 rounded flex items-center justify-center">
-                <svg class="w-8 h-8 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                </svg>
+          <!-- QR Code Section -->
+          <div class="mt-6 text-center">
+            <ClientOnly>
+              <div class="inline-block p-4 bg-white border rounded-xl shadow-sm">
+                <QRCodeVue :value="guestUrl" :size="160" level="M" />
               </div>
-            </template>
-          </ClientOnly>
-          <p class="mt-4 text-gray-600 text-sm">Scan to open on mobile</p>
-          <div class="mt-3 flex items-center justify-center gap-2">
-            <input
-              type="text"
-              readonly
-              :value="guestUrl"
-              class="flex-1 max-w-xs px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-600 truncate"
-            />
-            <button
-              @click="copyLink"
-              class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-            >
-              {{ copied ? 'Copied!' : 'Copy' }}
-            </button>
+              <template #fallback>
+                <div class="w-[160px] h-[160px] mx-auto bg-gray-100 rounded flex items-center justify-center">
+                  <svg class="w-8 h-8 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                </div>
+              </template>
+            </ClientOnly>
+            <p class="mt-4 text-gray-600 text-sm">Scan to open on mobile</p>
+            <div class="mt-3 flex items-center justify-center gap-2">
+              <input
+                type="text"
+                readonly
+                :value="guestUrl"
+                class="flex-1 max-w-xs px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-600 truncate"
+              />
+              <button
+                @click="copyLink"
+                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+              >
+                {{ copied ? 'Copied!' : 'Copy' }}
+              </button>
+            </div>
           </div>
         </div>
       </div>
-    </template>
+    </div>
 
     <!-- Photo Lightbox -->
     <div
@@ -287,14 +314,14 @@
         :href="getMediaUrl(currentMedia)"
         :download="currentMedia.originalName"
         class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
-        title="Download"
+        title="Download original"
       >
         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
       </a>
       <button
-        v-if="permissions?.canDelete"
+        v-if="currentMedia && canDeleteItem(currentMedia)"
         @click="deleteMedia(currentMedia.id)"
         :disabled="deletingMediaId === currentMedia.id"
         class="absolute top-4 right-28 p-2 text-white hover:text-red-400 z-10 disabled:opacity-50"
@@ -327,7 +354,7 @@
         </svg>
       </button>
       <img
-        :src="getMediaUrl(currentMedia)"
+        :src="getPreviewUrl(currentMedia)"
         :alt="currentMedia.originalName"
         class="max-h-[90vh] max-w-[90vw] object-contain"
       />
@@ -354,14 +381,14 @@
         :href="getMediaUrl(currentMedia)"
         :download="currentMedia.originalName"
         class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
-        title="Download"
+        title="Download original"
       >
         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
         </svg>
       </a>
       <button
-        v-if="permissions?.canDelete"
+        v-if="currentMedia && canDeleteItem(currentMedia)"
         @click="deleteMedia(currentMedia.id)"
         :disabled="deletingMediaId === currentMedia.id"
         class="absolute top-4 right-28 p-2 text-white hover:text-red-400 z-10 disabled:opacity-50"
@@ -378,6 +405,7 @@
       <video
         ref="videoPlayerRef"
         :src="getMediaUrl(currentMedia)"
+        :poster="getPreviewUrl(currentMedia) || undefined"
         controls
         autoplay
         class="max-h-[90vh] max-w-[90vw]"
@@ -394,11 +422,16 @@ import QRCodeVue from 'qrcode.vue'
 interface Media {
   id: string
   eventId: string
+  guestTokenId: string | null
   filename: string
   originalName: string
   mimeType: string
   size: number
   type: 'photo' | 'video'
+  thumbnail?: string | null
+  thumbnailFallback?: string | null
+  preview?: string | null
+  previewFallback?: string | null
   createdAt: string
 }
 
@@ -424,6 +457,7 @@ const activeTab = ref<'gallery' | 'upload'>('gallery')
 const copied = ref(false)
 const deletingMediaId = ref<string | null>(null)
 const mediaList = ref<Media[]>([])
+const thumbnailErrors = ref<Set<string>>(new Set())
 
 // Lightbox state
 const lightboxOpen = ref(false)
@@ -444,6 +478,7 @@ if (error.value) {
 const event = computed<GuestEvent | null>(() => response.value?.data?.event || null)
 const permissions = computed<Permissions | null>(() => response.value?.data?.permissions || null)
 const tokenName = computed(() => response.value?.data?.tokenName || null)
+const tokenId = computed(() => response.value?.data?.tokenId || null)
 const media = computed<Media[]>(() => mediaList.value.length > 0 ? mediaList.value : (response.value?.data?.media || []))
 
 // Sync media list when response changes
@@ -494,6 +529,73 @@ function formatFileSize(bytes: number): string {
 
 function getMediaUrl(item: Media): string {
   return `/api/uploads/${item.eventId}/${item.filename}`
+}
+
+// Get thumbnail URL for grid view (optimized for performance)
+function getThumbnailUrl(item: Media): string {
+  const baseUrl = `/api/uploads/${item.eventId}`
+  // Use thumbnail (WebP) first, then fallback to original JPEG thumbnail
+  if (item.thumbnail) {
+    return `${baseUrl}/${item.thumbnail}`
+  }
+  if (item.thumbnailFallback) {
+    return `${baseUrl}/${item.thumbnailFallback}`
+  }
+  // For photos, fall back to original file
+  if (item.type === 'photo') {
+    return `${baseUrl}/${item.filename}`
+  }
+  // Videos without thumbnails return empty (show placeholder)
+  return ''
+}
+
+// Get preview URL for lightbox view (medium-sized optimized image)
+function getPreviewUrl(item: Media): string {
+  const baseUrl = `/api/uploads/${item.eventId}`
+  // Use preview (WebP) first, then fallback
+  if (item.preview) {
+    return `${baseUrl}/${item.preview}`
+  }
+  if (item.previewFallback) {
+    return `${baseUrl}/${item.previewFallback}`
+  }
+  // For videos, try thumbnail as fallback for poster (don't use video file as image)
+  if (item.type === 'video') {
+    if (item.thumbnail) {
+      return `${baseUrl}/${item.thumbnail}`
+    }
+    if (item.thumbnailFallback) {
+      return `${baseUrl}/${item.thumbnailFallback}`
+    }
+    // No preview available for video
+    return ''
+  }
+  // For photos, fall back to original
+  return `${baseUrl}/${item.filename}`
+}
+
+// Check if item should show placeholder (video without thumbnail or failed load)
+function shouldShowPlaceholder(item: Media): boolean {
+  if (thumbnailErrors.value.has(item.id)) return true
+  // Videos without thumbnails can't use original as img src
+  if (item.type === 'video' && !item.thumbnail && !item.thumbnailFallback) return true
+  return false
+}
+
+// Handle thumbnail load error
+function handleThumbnailError(item: Media) {
+  thumbnailErrors.value.add(item.id)
+}
+
+// Check if guest can delete a specific item
+// Guests can delete if: they have canDelete permission OR it's their own upload
+function canDeleteItem(item: Media): boolean {
+  // Own upload - always deletable
+  if (item.guestTokenId && item.guestTokenId === tokenId.value) {
+    return true
+  }
+  // Shared media - only if canDelete permission
+  return permissions.value?.canDelete === true
 }
 
 // Lightbox functions
