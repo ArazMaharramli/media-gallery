@@ -7,7 +7,7 @@ import { ref, computed, onMounted, watch, type Ref } from 'vue'
 export interface Media {
   id: string
   eventId: string
-  uploadTokenId: string | null
+  guestTokenId: string | null
   filename: string
   originalName: string
   mimeType: string

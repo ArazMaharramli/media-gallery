@@ -287,7 +287,7 @@ export default defineEventHandler(async (event) => {
   // Create media record immediately (for videos, variants will be updated later)
   const media = await db.media.create({
     eventId,
-    uploadTokenId: null,
+    guestTokenId: null,
     filename,
     originalName,
     mimeType,

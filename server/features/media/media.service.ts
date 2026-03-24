@@ -14,7 +14,7 @@ export interface UploadMediaInput {
   buffer: Buffer
   mimeType: string
   originalName: string
-  uploadTokenId?: string | null
+  guestTokenId?: string | null
   uploadedBy: 'photographer' | 'guest'
 }
 
@@ -37,7 +37,7 @@ export const mediaService = {
    * Saves original file, creates database record, and triggers background variant processing
    */
   async uploadMedia(input: UploadMediaInput): Promise<UploadMediaResult> {
-    const { eventId, buffer, mimeType, originalName, uploadTokenId, uploadedBy } = input
+    const { eventId, buffer, mimeType, originalName, guestTokenId, uploadedBy } = input
 
     // Validate event exists
     const event = await eventsRepository.findById(eventId)
@@ -105,7 +105,7 @@ export const mediaService = {
     // Create database record
     const media = await mediaRepository.create({
       eventId,
-      uploadTokenId: uploadTokenId ?? null,
+      guestTokenId: guestTokenId ?? null,
       filename,
       originalName,
       mimeType,

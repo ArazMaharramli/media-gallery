@@ -48,7 +48,7 @@ export const uploadMediaSchema = z.object({
 export const mediaOutputSchema = z.object({
   id: z.string().uuid(),
   eventId: z.string().uuid(),
-  uploadTokenId: z.string().uuid().nullable(),
+  guestTokenId: z.string().uuid().nullable(),
   filename: z.string(),
   originalName: z.string(),
   mimeType: z.string(),

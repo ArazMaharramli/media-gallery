@@ -1,11 +1,12 @@
+# syntax=docker/dockerfile:1
 FROM node:22-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
 WORKDIR /app
-COPY package.json package-lock.json ./
+COPY package.json ./
 COPY prisma ./prisma/
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm install
 RUN npx prisma generate
 
 # Build the application
@@ -19,18 +20,18 @@ RUN npm run build
 FROM base AS runtime-deps
 WORKDIR /app
 # Only copy what's needed to install these specific packages
-RUN npm init -y && npm install --omit=dev sharp fluent-ffmpeg && rm package.json package-lock.json
+RUN --mount=type=cache,target=/root/.npm npm init -y && npm install --omit=dev sharp fluent-ffmpeg && rm package.json package-lock.json
 
 # Production image
 FROM base AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install ffmpeg for video thumbnail generation and su-exec for user switching
-RUN apk add --no-cache ffmpeg su-exec
+# Install ffmpeg for video thumbnail generation, su-exec for user switching, and postgresql-client for migrations
+RUN apk add --no-cache ffmpeg su-exec postgresql-client
 
 # Install prisma CLI (matching project version) for migrations
-RUN npm install -g prisma@6
+RUN --mount=type=cache,target=/root/.npm npm install -g prisma@6
 
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nuxtjs

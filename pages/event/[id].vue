@@ -3,23 +3,11 @@
     <!-- Event Header -->
     <EventHeader
       :event="event"
-      :upload-tokens="uploadTokens"
-      :view-tokens="viewTokens"
-      :show-upload-links="showUploadLinks"
-      :show-share-links="showShareLinks"
-      :is-creating-view-token="isCreatingViewToken"
-      :deactivating-upload-token-id="deactivatingTokenId"
-      :revoking-view-token-id="revokingTokenId"
+      :is-creating-token="isCreatingToken"
       :selected-count="selectedMediaIds.size"
       :selection-mode="selectionMode"
-      @share-gallery="handleShareGallery"
-      @toggle-share-links="showShareLinks = !showShareLinks"
-      @toggle-upload-links="showUploadLinks = !showUploadLinks"
-      @create-upload-link="showNewLinkModal = true"
-      @copy-upload-link="copyUploadLink"
-      @copy-view-link="copyViewLink"
-      @deactivate-upload-token="deactivateToken"
-      @revoke-view-token="revokeViewToken"
+      @quick-share="quickShare"
+      @open-share-modal="showCreateLinkModal = true"
     />
 
     <!-- Tabs -->
@@ -51,9 +39,24 @@
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
-              Upload Media
+              Upload
               <span v-if="uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length > 0" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">
                 {{ uploadQueue.filter(i => i.status === 'uploading' || i.status === 'pending').length }}
+              </span>
+            </span>
+          </button>
+          <button
+            @click="activeTab = 'links'"
+            class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
+            :class="activeTab === 'links' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+          >
+            <span class="flex items-center gap-2">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              Links
+              <span v-if="activeGuestTokens.length > 0" class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
+                {{ activeGuestTokens.length }}
               </span>
             </span>
           </button>
@@ -75,7 +78,7 @@
       <EventMediaGrid
         v-if="activeTab === 'media'"
         :media="media"
-        :upload-tokens="uploadTokens"
+        :guest-tokens="guestTokens"
         :view-mode="viewMode"
         :selection-mode="selectionMode"
         :selected-ids="selectedMediaIds"
@@ -93,6 +96,16 @@
         @delete-selected="showBatchDeleteModal = true"
         @load-more="loadMoreMedia"
       />
+
+      <!-- Links Tab Content -->
+      <div v-if="activeTab === 'links'" class="p-6">
+        <EventTokensGuestTokenList
+          :tokens="activeGuestTokens"
+          :revoking-id="revokingTokenId"
+          @copy="copyGuestLink"
+          @revoke="revokeGuestToken"
+        />
+      </div>
     </div>
 
     <!-- Image Lightbox -->
@@ -184,13 +197,14 @@
       @close="showShareModal = false"
     />
 
-    <!-- Create Upload Link Modal -->
-    <EventTokensCreateUploadLinkModal
-      :is-open="showNewLinkModal"
-      :is-creating="isCreatingLink"
+    <!-- Create Guest Link Modal -->
+    <EventTokensCreateGuestTokenModal
+      :is-open="showCreateLinkModal"
+      :selected-media-ids="selectionMode ? Array.from(selectedMediaIds) : []"
+      :is-submitting="isCreatingToken"
       :error="createLinkError"
-      @close="closeNewLinkModal"
-      @create="createUploadLink"
+      @close="closeCreateLinkModal"
+      @submit="createGuestLink"
     />
 
     <!-- Toast Notification -->
@@ -207,7 +221,7 @@
 interface Media {
   id: string
   eventId: string
-  uploadTokenId: string | null
+  guestTokenId: string | null
   filename: string
   originalName: string
   mimeType: string
@@ -222,21 +236,17 @@ interface Media {
   createdAt: string
 }
 
-interface ViewToken {
+interface GuestToken {
   id: string
   eventId: string
   token: string
+  name: string | null
   active: boolean
+  canView: boolean
+  canUpload: boolean
+  canDelete: boolean
   mediaIds: string[]
-  createdAt: string
-}
-
-interface UploadToken {
-  id: string
-  eventId: string
-  token: string
-  name: string
-  active: boolean
+  expiresAt: string | null
   createdAt: string
 }
 
@@ -247,6 +257,14 @@ interface UploadQueueItem {
   progress: number
   error?: string
   abortController?: AbortController
+}
+
+interface CreateGuestTokenInput {
+  name?: string
+  canView: boolean
+  canUpload: boolean
+  canDelete: boolean
+  mediaIds?: string[]
 }
 
 const route = useRoute()
@@ -308,19 +326,15 @@ async function refreshMedia() {
   await fetchMedia(1, false)
 }
 
-// Fetch tokens
-const { data: tokensResponse, refresh: refreshTokens } = await useFetch(`/api/events/${eventId}/upload-tokens`)
-const uploadTokens = computed<UploadToken[]>(() => (tokensResponse.value as any)?.data || [])
-
-const { data: viewTokensResponse, refresh: refreshViewTokens } = await useFetch(`/api/events/${eventId}/view-tokens`)
-const viewTokens = computed<ViewToken[]>(() => (viewTokensResponse.value as any)?.data || [])
+// Fetch guest tokens
+const { data: tokensResponse, refresh: refreshTokens } = await useFetch(`/api/events/${eventId}/guest-tokens`)
+const guestTokens = computed<GuestToken[]>(() => (tokensResponse.value as any)?.data || [])
+const activeGuestTokens = computed(() => guestTokens.value.filter(t => t.active))
 
 // UI State
-const activeTab = ref<'media' | 'upload'>('media')
+const activeTab = ref<'media' | 'upload' | 'links'>('media')
 const viewMode = ref<'grid' | 'list'>('grid')
-const showUploadLinks = ref(false)
-const showShareLinks = ref(false)
-const showNewLinkModal = ref(false)
+const showCreateLinkModal = ref(false)
 const showShareModal = ref(false)
 const showDeleteModal = ref(false)
 const showBatchDeleteModal = ref(false)
@@ -348,10 +362,8 @@ const isDeleting = ref(false)
 const isBatchDeleting = ref(false)
 
 // Token management state
-const isCreatingViewToken = ref(false)
-const isCreatingLink = ref(false)
-const createLinkError = ref('')
-const deactivatingTokenId = ref<string | null>(null)
+const isCreatingToken = ref(false)
+const createLinkError = ref<string | null>(null)
 const revokingTokenId = ref<string | null>(null)
 const shareLink = ref('')
 
@@ -362,16 +374,6 @@ const toastMessage = ref('')
 // Upload queue state
 const uploadQueue = ref<UploadQueueItem[]>([])
 const isProcessingQueue = ref(false)
-
-// Date formatting
-const formattedDate = computed(() => {
-  if (!event.value?.date) return ''
-  return new Date(event.value.date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-})
 
 // Initialize
 await fetchMedia(1)
@@ -403,10 +405,6 @@ function getMediaUrl(item: Media | null | undefined, variant?: 'thumbnail' | 'pr
   if (variant === 'thumbnail' && item.thumbnail) return `${baseUrl}/${item.thumbnail}`
   if (variant === 'preview' && item.preview) return `${baseUrl}/${item.preview}`
   return `${baseUrl}/${item.filename}`
-}
-
-function getThumbnailUrl(item: Media | null | undefined): string {
-  return getMediaUrl(item, 'thumbnail')
 }
 
 function getPreviewUrl(item: Media | null | undefined): string {
@@ -548,71 +546,19 @@ async function batchDeleteMedia() {
   }
 }
 
-// Share gallery
-async function handleShareGallery() {
-  isCreatingViewToken.value = true
-
-  try {
-    const mediaIds = selectionMode.value && selectedMediaIds.value.size > 0
-      ? Array.from(selectedMediaIds.value)
-      : undefined
-
-    const response = await $fetch(`/api/events/${eventId}/view-tokens`, {
-      method: 'POST',
-      body: mediaIds ? { mediaIds } : {}
-    }) as any
-
-    shareLink.value = `${window.location.origin}/gallery/${response.data.token}`
-    await navigator.clipboard.writeText(shareLink.value)
-
-    if (mediaIds) {
-      showToastMessage(`Share link copied (${mediaIds.length} items)`)
-      selectionMode.value = false
-      selectedMediaIds.value.clear()
-    } else {
-      showToastMessage('Share link copied to clipboard')
-    }
-
-    showShareModal.value = true
-    await refreshViewTokens()
-  } catch (err) {
-    console.error('Failed to create share link:', err)
-  } finally {
-    isCreatingViewToken.value = false
-  }
-}
-
-// Token management
-function copyUploadLink(token: string) {
-  const link = `${window.location.origin}/upload/${token}`
+// Guest token management
+function copyGuestLink(token: string) {
+  const link = `${window.location.origin}/guest/${token}`
   navigator.clipboard.writeText(link)
-  showToastMessage('Upload link copied to clipboard')
+  showToastMessage('Guest link copied to clipboard')
 }
 
-function copyViewLink(token: string) {
-  const link = `${window.location.origin}/gallery/${token}`
-  navigator.clipboard.writeText(link)
-  showToastMessage('Share link copied to clipboard')
-}
-
-async function deactivateToken(tokenId: string) {
-  deactivatingTokenId.value = tokenId
-  try {
-    await $fetch(`/api/events/${eventId}/upload-tokens/${tokenId}/deactivate`, { method: 'PATCH' })
-    await refreshTokens()
-  } catch (err) {
-    console.error('Failed to deactivate token:', err)
-  } finally {
-    deactivatingTokenId.value = null
-  }
-}
-
-async function revokeViewToken(tokenId: string) {
+async function revokeGuestToken(tokenId: string) {
   revokingTokenId.value = tokenId
   try {
-    await $fetch(`/api/events/${eventId}/view-tokens/${tokenId}/revoke`, { method: 'PATCH' })
-    await refreshViewTokens()
-    showToastMessage('Share link revoked')
+    await $fetch(`/api/events/${eventId}/guest-tokens/${tokenId}/revoke`, { method: 'PATCH' })
+    await refreshTokens()
+    showToastMessage('Guest link revoked')
   } catch (err) {
     console.error('Failed to revoke token:', err)
   } finally {
@@ -620,28 +566,85 @@ async function revokeViewToken(tokenId: string) {
   }
 }
 
-async function createUploadLink(name: string) {
-  if (!name.trim()) return
-  isCreatingLink.value = true
-  createLinkError.value = ''
+// Quick share - creates a view-only link immediately
+async function quickShare() {
+  isCreatingToken.value = true
 
   try {
-    await $fetch(`/api/events/${eventId}/upload-tokens`, {
+    // If in selection mode with selected items, create selective sharing link
+    const data: CreateGuestTokenInput = {
+      canView: true,
+      canUpload: false,
+      canDelete: false
+    }
+
+    if (selectionMode.value && selectedMediaIds.value.size > 0) {
+      data.mediaIds = Array.from(selectedMediaIds.value)
+    }
+
+    const response = await $fetch(`/api/events/${eventId}/guest-tokens`, {
       method: 'POST',
-      body: { name: name.trim() }
-    })
+      body: data
+    }) as any
+
+    shareLink.value = `${window.location.origin}/guest/${response.data.token}`
+    await navigator.clipboard.writeText(shareLink.value)
+
+    if (data.mediaIds && data.mediaIds.length > 0) {
+      showToastMessage(`Link created for ${data.mediaIds.length} items - copied to clipboard`)
+      selectionMode.value = false
+      selectedMediaIds.value.clear()
+    } else {
+      showToastMessage('Share link created and copied to clipboard')
+    }
+
+    showShareModal.value = true
     await refreshTokens()
-    closeNewLinkModal()
   } catch (err: any) {
-    createLinkError.value = err.data?.error?.message || 'Failed to create upload link'
+    showToastMessage(err.data?.error?.message || 'Failed to create share link')
   } finally {
-    isCreatingLink.value = false
+    isCreatingToken.value = false
   }
 }
 
-function closeNewLinkModal() {
-  showNewLinkModal.value = false
-  createLinkError.value = ''
+async function createGuestLink(data: CreateGuestTokenInput) {
+  isCreatingToken.value = true
+  createLinkError.value = null
+
+  try {
+    const response = await $fetch(`/api/events/${eventId}/guest-tokens`, {
+      method: 'POST',
+      body: data
+    }) as any
+
+    shareLink.value = `${window.location.origin}/guest/${response.data.token}`
+    await navigator.clipboard.writeText(shareLink.value)
+
+    if (data.canView && data.mediaIds && data.mediaIds.length > 0) {
+      showToastMessage(`Guest link created (${data.mediaIds.length} items)`)
+    } else {
+      showToastMessage('Guest link created and copied to clipboard')
+    }
+
+    // Clear selection if we used selected media
+    if (selectionMode.value && data.mediaIds && data.mediaIds.length > 0) {
+      selectionMode.value = false
+      selectedMediaIds.value.clear()
+    }
+
+    showShareModal.value = true
+    closeCreateLinkModal()
+    await refreshTokens()
+  } catch (err: any) {
+    createLinkError.value = err.data?.error?.message || 'Failed to create guest link'
+  } finally {
+    isCreatingToken.value = false
+  }
+}
+
+function closeCreateLinkModal() {
+  showCreateLinkModal.value = false
+  createLinkError.value = null
 }
 
 // File upload handling

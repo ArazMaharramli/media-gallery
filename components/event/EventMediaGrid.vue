@@ -81,7 +81,7 @@
         :media="item"
         :is-selected="isSelected(item.id)"
         :selection-mode="selectionMode"
-        :uploader-name="getUploaderName(item.uploadTokenId)"
+        :uploader-name="getUploaderName(item.guestTokenId)"
         @click="$emit('openLightbox', index)"
         @select="$emit('toggleSelection', item.id)"
         @preview="$emit('openLightbox', index)"
@@ -145,10 +145,10 @@
           <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-gray-500 capitalize">{{ item.type }}</span>
             <span
-              v-if="item.uploadedBy === 'guest' && getUploaderName(item.uploadTokenId)"
+              v-if="item.uploadedBy === 'guest' && getUploaderName(item.guestTokenId)"
               class="text-xs px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded"
             >
-              {{ getUploaderName(item.uploadTokenId) }}
+              {{ getUploaderName(item.guestTokenId) }}
             </span>
           </div>
         </div>
@@ -198,14 +198,14 @@
 <script setup lang="ts">
 import type { Media } from '~/composables/useEventMedia'
 
-interface UploadToken {
+interface GuestToken {
   id: string
-  name: string
+  name: string | null
 }
 
 interface Props {
   media: Media[]
-  uploadTokens: UploadToken[]
+  guestTokens: GuestToken[]
   viewMode: 'grid' | 'list'
   selectionMode: boolean
   selectedIds: Set<string>
@@ -239,7 +239,7 @@ function isSelected(id: string): boolean {
 
 function getUploaderName(tokenId: string | null): string | null {
   if (!tokenId) return null
-  const token = props.uploadTokens.find(t => t.id === tokenId)
+  const token = props.guestTokens.find(t => t.id === tokenId)
   return token?.name || null
 }
 

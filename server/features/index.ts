@@ -26,10 +26,7 @@ export {
 
 // Tokens
 export {
-  viewTokensRepository,
-  uploadTokensRepository,
-  type ViewTokensRepository,
-  type UploadTokensRepository,
-  type CreateViewTokenData,
-  type CreateUploadTokenData
+  guestTokensRepository,
+  type GuestTokensRepository,
+  type CreateGuestTokenData
 } from './tokens'

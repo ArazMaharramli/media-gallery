@@ -1,44 +1,52 @@
 /**
- * Token validation schemas (view tokens and upload tokens)
+ * Guest token validation schemas
  * Used by both client (Vue) and server (API handlers)
  */
 import { z } from 'zod'
 import { tokenSchema } from './common.schema'
 
-// Create view token input
-export const createViewTokenSchema = z.object({
+// Create guest token input
+export const createGuestTokenSchema = z.object({
+  name: z
+    .string()
+    .max(50, 'Name must be 50 characters or less')
+    .optional()
+    .describe('Optional name/label for the link (e.g., "Uncle Bob", "Family Link")'),
+  canView: z
+    .boolean()
+    .default(true)
+    .describe('Allow viewing and downloading media'),
+  canUpload: z
+    .boolean()
+    .default(false)
+    .describe('Allow uploading new media'),
+  canDelete: z
+    .boolean()
+    .default(false)
+    .describe('Allow deleting own uploaded media'),
   mediaIds: z
     .array(z.string().uuid())
     .optional()
-    .describe('Optional list of specific media IDs to share. If empty, shares all media.')
-})
-
-// Create upload token input
-export const createUploadTokenSchema = z.object({
-  name: z
+    .describe('Optional list of specific media IDs to share. If empty, shares all media.'),
+  expiresAt: z
     .string()
-    .min(1, 'Name is required')
-    .max(50, 'Name must be 50 characters or less')
-    .describe('Name/label for the uploader (e.g., "Uncle Bob", "Wedding Party")')
+    .datetime()
+    .optional()
+    .describe('Optional expiration date for the token')
 })
 
-// View token output (from API)
-export const viewTokenOutputSchema = z.object({
+// Guest token output (from API)
+export const guestTokenOutputSchema = z.object({
   id: z.string().uuid(),
   eventId: z.string().uuid(),
   token: tokenSchema,
+  name: z.string().nullable(),
   active: z.boolean(),
+  canView: z.boolean(),
+  canUpload: z.boolean(),
+  canDelete: z.boolean(),
   mediaIds: z.array(z.string().uuid()),
-  createdAt: z.string()
-})
-
-// Upload token output (from API)
-export const uploadTokenOutputSchema = z.object({
-  id: z.string().uuid(),
-  eventId: z.string().uuid(),
-  token: tokenSchema,
-  name: z.string(),
-  active: z.boolean(),
+  expiresAt: z.string().nullable(),
   createdAt: z.string()
 })
 
@@ -48,7 +56,5 @@ export const tokenParamSchema = z.object({
 })
 
 // Types
-export type CreateViewTokenInput = z.infer<typeof createViewTokenSchema>
-export type CreateUploadTokenInput = z.infer<typeof createUploadTokenSchema>
-export type ViewTokenOutput = z.infer<typeof viewTokenOutputSchema>
-export type UploadTokenOutput = z.infer<typeof uploadTokenOutputSchema>
+export type CreateGuestTokenInput = z.infer<typeof createGuestTokenSchema>
+export type GuestTokenOutput = z.infer<typeof guestTokenOutputSchema>

@@ -11,6 +11,7 @@ export const ErrorCodes = {
   INVALID_TYPE: 'INVALID_TYPE',
   MISSING_FIELD: 'MISSING_FIELD',
   NOT_FOUND: 'NOT_FOUND',
+  FORBIDDEN: 'FORBIDDEN',
   ALREADY_EXISTS: 'ALREADY_EXISTS',
   STATE_CONFLICT: 'STATE_CONFLICT',
   FILE_TOO_LARGE: 'FILE_TOO_LARGE',
@@ -89,6 +90,8 @@ function mapStatusToCode(statusCode: number): ErrorCode {
   switch (statusCode) {
     case 400:
       return ErrorCodes.VALIDATION_ERROR
+    case 403:
+      return ErrorCodes.FORBIDDEN
     case 404:
       return ErrorCodes.NOT_FOUND
     case 409:
@@ -124,6 +127,10 @@ export function throwInvalidFormatError(field: string, expectedFormat: string): 
 
 export function throwConflictError(message: string): never {
   throw createApiError(409, ErrorCodes.STATE_CONFLICT, message)
+}
+
+export function throwForbiddenError(message: string): never {
+  throw createApiError(403, ErrorCodes.FORBIDDEN, message)
 }
 
 export function throwInternalError(message = 'An unexpected error occurred'): never {

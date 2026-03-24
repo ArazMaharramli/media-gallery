@@ -4,9 +4,10 @@ import { successResponse } from '~/server/utils/response'
 
 export default defineEventHandler(async (event) => {
   const eventId = getRouterParam(event, 'id')
+  const tokenId = getRouterParam(event, 'tokenId')
 
-  if (!eventId) {
-    throwNotFoundError('Event')
+  if (!eventId || !tokenId) {
+    throwNotFoundError('Guest token')
   }
 
   // Verify event exists
@@ -15,8 +16,11 @@ export default defineEventHandler(async (event) => {
     throwNotFoundError('Event', eventId)
   }
 
-  // Get view tokens for this event
-  const viewTokens = await db.viewTokens.findByEventId(eventId)
+  // Revoke the guest token
+  const success = await db.guestTokens.revoke(tokenId)
+  if (!success) {
+    throwNotFoundError('Guest token', tokenId)
+  }
 
-  return successResponse(event, viewTokens)
+  return successResponse(event, { revoked: true })
 })

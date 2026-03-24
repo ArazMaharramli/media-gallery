@@ -119,7 +119,7 @@
 interface Media {
   id: string
   eventId: string
-  uploadTokenId: string | null
+  guestTokenId: string | null
   filename: string
   originalName: string
   type: 'photo' | 'video'

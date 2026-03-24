@@ -1,68 +1,78 @@
 /**
  * Token management composable
- * Handles view tokens and upload tokens CRUD operations
+ * Handles guest token CRUD operations (unified view/upload tokens)
  */
 import { ref } from 'vue'
 
-export interface ViewToken {
+export interface GuestToken {
   id: string
   eventId: string
   token: string
+  name: string | null
   active: boolean
+  canView: boolean
+  canUpload: boolean
+  canDelete: boolean
   mediaIds: string[]
+  expiresAt: string | null
   createdAt: string
 }
 
-export interface UploadToken {
-  id: string
-  eventId: string
-  token: string
-  name: string
-  active: boolean
-  createdAt: string
+export interface CreateGuestTokenInput {
+  name?: string
+  canView?: boolean
+  canUpload?: boolean
+  canDelete?: boolean
+  mediaIds?: string[]
+  expiresAt?: string
 }
 
 export function useTokenManagement(eventId: string) {
   // Loading states
-  const isCreatingViewToken = ref(false)
-  const isCreatingUploadToken = ref(false)
+  const isCreatingToken = ref(false)
   const revokingTokenId = ref<string | null>(null)
-  const deactivatingTokenId = ref<string | null>(null)
 
   // Error state
   const error = ref<string | null>(null)
 
   /**
-   * Create a new view token for sharing gallery
+   * Create a new guest token
    */
-  async function createViewToken(mediaIds?: string[]): Promise<ViewToken | null> {
-    isCreatingViewToken.value = true
+  async function createGuestToken(options: CreateGuestTokenInput = {}): Promise<GuestToken | null> {
+    isCreatingToken.value = true
     error.value = null
 
     try {
-      const response = await $fetch(`/api/events/${eventId}/view-tokens`, {
+      const response = await $fetch(`/api/events/${eventId}/guest-tokens`, {
         method: 'POST',
-        body: { mediaIds }
+        body: {
+          name: options.name,
+          canView: options.canView ?? true,
+          canUpload: options.canUpload ?? false,
+          canDelete: options.canDelete ?? false,
+          mediaIds: options.mediaIds,
+          expiresAt: options.expiresAt
+        }
       }) as any
 
       return response.data
     } catch (err: any) {
-      error.value = err.data?.error?.message || 'Failed to create share link'
+      error.value = err.data?.error?.message || 'Failed to create guest link'
       return null
     } finally {
-      isCreatingViewToken.value = false
+      isCreatingToken.value = false
     }
   }
 
   /**
-   * Revoke a view token
+   * Revoke a guest token
    */
-  async function revokeViewToken(tokenId: string): Promise<boolean> {
+  async function revokeGuestToken(tokenId: string): Promise<boolean> {
     revokingTokenId.value = tokenId
     error.value = null
 
     try {
-      await $fetch(`/api/events/${eventId}/view-tokens/${tokenId}/revoke`, {
+      await $fetch(`/api/events/${eventId}/guest-tokens/${tokenId}/revoke`, {
         method: 'PATCH'
       })
       return true
@@ -75,65 +85,13 @@ export function useTokenManagement(eventId: string) {
   }
 
   /**
-   * Create a new upload token
+   * Generate full URL for a guest token
    */
-  async function createUploadToken(name: string): Promise<UploadToken | null> {
-    isCreatingUploadToken.value = true
-    error.value = null
-
-    try {
-      const response = await $fetch(`/api/events/${eventId}/upload-tokens`, {
-        method: 'POST',
-        body: { name }
-      }) as any
-
-      return response.data
-    } catch (err: any) {
-      error.value = err.data?.error?.message || 'Failed to create upload link'
-      return null
-    } finally {
-      isCreatingUploadToken.value = false
-    }
-  }
-
-  /**
-   * Deactivate an upload token
-   */
-  async function deactivateUploadToken(tokenId: string): Promise<boolean> {
-    deactivatingTokenId.value = tokenId
-    error.value = null
-
-    try {
-      await $fetch(`/api/events/${eventId}/upload-tokens/${tokenId}/deactivate`, {
-        method: 'PATCH'
-      })
-      return true
-    } catch (err: any) {
-      error.value = err.data?.error?.message || 'Failed to deactivate link'
-      return false
-    } finally {
-      deactivatingTokenId.value = null
-    }
-  }
-
-  /**
-   * Generate full URL for a view token
-   */
-  function getViewTokenUrl(token: string): string {
+  function getGuestTokenUrl(token: string): string {
     if (typeof window !== 'undefined') {
-      return `${window.location.origin}/gallery/${token}`
+      return `${window.location.origin}/guest/${token}`
     }
-    return `/gallery/${token}`
-  }
-
-  /**
-   * Generate full URL for an upload token
-   */
-  function getUploadTokenUrl(token: string): string {
-    if (typeof window !== 'undefined') {
-      return `${window.location.origin}/upload/${token}`
-    }
-    return `/upload/${token}`
+    return `/guest/${token}`
   }
 
   /**
@@ -150,21 +108,14 @@ export function useTokenManagement(eventId: string) {
 
   return {
     // State
-    isCreatingViewToken,
-    isCreatingUploadToken,
+    isCreatingToken,
     revokingTokenId,
-    deactivatingTokenId,
     error,
 
-    // View token actions
-    createViewToken,
-    revokeViewToken,
-    getViewTokenUrl,
-
-    // Upload token actions
-    createUploadToken,
-    deactivateUploadToken,
-    getUploadTokenUrl,
+    // Actions
+    createGuestToken,
+    revokeGuestToken,
+    getGuestTokenUrl,
 
     // Utilities
     copyToClipboard

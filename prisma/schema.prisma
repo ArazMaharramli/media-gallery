@@ -15,48 +15,42 @@ model Event {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  viewTokens   ViewToken[]
-  uploadTokens UploadToken[]
-  media        Media[]
+  guestTokens GuestToken[]
+  media       Media[]
 
   @@map("events")
 }
 
-model ViewToken {
-  id        String   @id @default(uuid())
+model GuestToken {
+  id        String    @id @default(uuid())
   eventId   String
-  token     String   @unique
-  active    Boolean  @default(true)
-  mediaIds  String[] @default([])
-  createdAt DateTime @default(now())
+  token     String    @unique
+  name      String?
+  active    Boolean   @default(true)
 
-  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  // Permissions
+  canView   Boolean   @default(true)
+  canUpload Boolean   @default(false)
+  canDelete Boolean   @default(false)
 
-  @@index([eventId])
-  @@index([active])
-  @@map("view_tokens")
-}
+  // Constraints
+  mediaIds  String[]  @default([])
+  expiresAt DateTime?
 
-model UploadToken {
-  id        String   @id @default(uuid())
-  eventId   String
-  token     String   @unique
-  name      String
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   event Event   @relation(fields: [eventId], references: [id], onDelete: Cascade)
   media Media[]
 
   @@index([eventId])
   @@index([active])
-  @@map("upload_tokens")
+  @@map("guest_tokens")
 }
 
 model Media {
   id                String       @id @default(uuid())
   eventId           String
-  uploadTokenId     String?
+  guestTokenId      String?
   filename          String
   originalName      String
   mimeType          String
@@ -70,11 +64,11 @@ model Media {
   previewFallback   String?
   createdAt         DateTime     @default(now())
 
-  event       Event        @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  uploadToken UploadToken? @relation(fields: [uploadTokenId], references: [id], onDelete: SetNull)
+  event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  guestToken GuestToken? @relation(fields: [guestTokenId], references: [id], onDelete: SetNull)
 
   @@index([eventId])
-  @@index([uploadTokenId])
+  @@index([guestTokenId])
   @@index([createdAt])
   @@map("media")
 }

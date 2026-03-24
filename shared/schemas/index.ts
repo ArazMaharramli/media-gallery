@@ -41,13 +41,9 @@ export {
 
 // Tokens
 export {
-  createViewTokenSchema,
-  createUploadTokenSchema,
-  viewTokenOutputSchema,
-  uploadTokenOutputSchema,
+  createGuestTokenSchema,
+  guestTokenOutputSchema,
   tokenParamSchema,
-  type CreateViewTokenInput,
-  type CreateUploadTokenInput,
-  type ViewTokenOutput,
-  type UploadTokenOutput
+  type CreateGuestTokenInput,
+  type GuestTokenOutput
 } from './token.schema'

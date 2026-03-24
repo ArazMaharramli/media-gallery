@@ -43,70 +43,52 @@ export const db = {
     }
   },
 
-  // Upload Tokens
-  uploadTokens: {
+  // Guest Tokens (unified view/upload tokens)
+  guestTokens: {
     findByEventId: async (eventId: string) => {
-      return prisma.uploadToken.findMany({
+      return prisma.guestToken.findMany({
         where: { eventId },
         orderBy: { createdAt: 'desc' }
       })
     },
     findByToken: async (token: string) => {
-      return prisma.uploadToken.findUnique({
+      return prisma.guestToken.findUnique({
         where: { token }
       })
     },
-    create: async (data: { eventId: string; name: string }) => {
+    findByTokenWithEvent: async (token: string) => {
+      return prisma.guestToken.findUnique({
+        where: { token },
+        include: { event: true }
+      })
+    },
+    create: async (data: {
+      eventId: string
+      name?: string
+      canView?: boolean
+      canUpload?: boolean
+      canDelete?: boolean
+      mediaIds?: string[]
+      expiresAt?: Date
+    }) => {
       const token = crypto.randomUUID().replace(/-/g, '').substring(0, 16)
-      return prisma.uploadToken.create({
+      return prisma.guestToken.create({
         data: {
           eventId: data.eventId,
           token,
-          name: data.name,
-          active: true
-        }
-      })
-    },
-    deactivate: async (id: string) => {
-      try {
-        await prisma.uploadToken.update({
-          where: { id },
-          data: { active: false }
-        })
-        return true
-      } catch {
-        return false
-      }
-    }
-  },
-
-  // View Tokens
-  viewTokens: {
-    findByEventId: async (eventId: string) => {
-      return prisma.viewToken.findMany({
-        where: { eventId },
-        orderBy: { createdAt: 'desc' }
-      })
-    },
-    findByToken: async (token: string) => {
-      return prisma.viewToken.findUnique({
-        where: { token }
-      })
-    },
-    create: async (eventId: string, mediaIds?: string[]) => {
-      const token = crypto.randomUUID().replace(/-/g, '').substring(0, 16)
-      return prisma.viewToken.create({
-        data: {
-          eventId,
-          token,
+          name: data.name ?? null,
           active: true,
-          mediaIds: mediaIds || []
+          canView: data.canView ?? true,
+          canUpload: data.canUpload ?? false,
+          canDelete: data.canDelete ?? false,
+          mediaIds: data.mediaIds ?? [],
+          expiresAt: data.expiresAt ?? null
         }
       })
     },
     revoke: async (id: string) => {
       try {
-        await prisma.viewToken.update({
+        await prisma.guestToken.update({
           where: { id },
           data: { active: false }
         })
@@ -134,6 +116,13 @@ export const db = {
       })
       return items.map(serializeMedia)
     },
+    findByIds: async (ids: string[]) => {
+      const items = await prisma.media.findMany({
+        where: { id: { in: ids } },
+        orderBy: { createdAt: 'desc' }
+      })
+      return items.map(serializeMedia)
+    },
     countByEventId: async (eventId: string) => {
       return prisma.media.count({
         where: { eventId }
@@ -141,7 +130,7 @@ export const db = {
     },
     create: async (data: {
       eventId: string
-      uploadTokenId: string | null
+      guestTokenId: string | null
       filename: string
       originalName: string
       mimeType: string
@@ -157,7 +146,7 @@ export const db = {
       const media = await prisma.media.create({
         data: {
           eventId: data.eventId,
-          uploadTokenId: data.uploadTokenId,
+          guestTokenId: data.guestTokenId,
           filename: data.filename,
           originalName: data.originalName,
           mimeType: data.mimeType,

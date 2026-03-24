@@ -8,7 +8,7 @@ import type { Media, MediaType, UploaderType, Prisma } from '@prisma/client'
 
 export interface CreateMediaData {
   eventId: string
-  uploadTokenId?: string | null
+  guestTokenId?: string | null
   filename: string
   originalName: string
   mimeType: string
@@ -91,7 +91,7 @@ export const mediaRepository = {
     const media = await prisma.media.create({
       data: {
         eventId: data.eventId,
-        uploadTokenId: data.uploadTokenId ?? null,
+        guestTokenId: data.guestTokenId ?? null,
         filename: data.filename,
         originalName: data.originalName,
         mimeType: data.mimeType,
