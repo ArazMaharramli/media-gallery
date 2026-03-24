@@ -6,16 +6,16 @@
   >
     <!-- Thumbnail -->
     <img
-      v-if="!thumbnailError"
+      v-if="!showPlaceholder && thumbnailUrl"
       :src="thumbnailUrl"
       :alt="media.originalName"
       class="absolute inset-0 w-full h-full object-cover"
       @error="handleThumbnailError"
     />
 
-    <!-- Fallback placeholder when thumbnail fails -->
+    <!-- Fallback placeholder when thumbnail fails or not available -->
     <div
-      v-if="thumbnailError"
+      v-if="showPlaceholder"
       class="absolute inset-0 flex items-center justify-center bg-gray-200"
     >
       <svg v-if="media.type === 'video'" class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,12 +147,25 @@ const emit = defineEmits<{
 
 const thumbnailError = ref(false)
 
+// For videos without thumbnails, show placeholder immediately
+const showPlaceholder = computed(() => {
+  if (thumbnailError.value) return true
+  // Videos without a thumbnail can't use the original file as img src
+  if (props.media.type === 'video' && !props.media.thumbnail) return true
+  return false
+})
+
 const thumbnailUrl = computed(() => {
   const baseUrl = `/api/uploads/${props.media.eventId}`
   if (props.media.thumbnail) {
     return `${baseUrl}/${props.media.thumbnail}`
   }
-  return `${baseUrl}/${props.media.filename}`
+  // For images, fall back to original file
+  if (props.media.type === 'photo') {
+    return `${baseUrl}/${props.media.filename}`
+  }
+  // For videos without thumbnail, return empty (placeholder will show)
+  return ''
 })
 
 function handleClick() {
