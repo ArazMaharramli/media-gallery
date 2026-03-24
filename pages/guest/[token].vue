@@ -243,53 +243,58 @@
 
       <!-- Upload Tab Content -->
       <div v-if="permissions?.canUpload && activeTab === 'upload'" class="p-6">
-        <div class="max-w-2xl mx-auto">
-          <div class="bg-blue-50 rounded-lg p-4 mb-6">
-            <p class="text-blue-800 text-center">
-              Share your photos and videos from the event! Drag files here or click to browse.
-            </p>
+        <!-- Side by side layout -->
+        <div class="flex flex-col md:flex-row md:items-stretch gap-6">
+          <!-- Dropzone Section -->
+          <div class="flex-1">
+            <div class="h-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-indigo-400 transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[280px]">
+              <svg class="h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <p class="mt-4 text-gray-600">
+                <span class="font-medium text-indigo-600">Click to upload</span> or drag and drop
+              </p>
+              <p class="mt-2 text-sm text-gray-500">
+                JPG, PNG, GIF, WEBP, MP4, MOV, WEBM up to 500MB
+              </p>
+            </div>
           </div>
 
-          <div class="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center hover:border-indigo-400 transition-colors cursor-pointer">
-            <svg class="mx-auto h-16 w-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-            </svg>
-            <p class="mt-4 text-gray-600">
-              <span class="font-medium text-indigo-600">Click to upload</span> or drag and drop
-            </p>
-            <p class="mt-2 text-sm text-gray-500">
-              JPG, PNG, GIF, WEBP, MP4, MOV, WEBM up to 500MB
-            </p>
+          <!-- Divider - hidden on mobile -->
+          <div class="hidden md:flex md:items-center">
+            <div class="w-px h-full bg-gray-200 min-h-[280px]"></div>
           </div>
 
-          <!-- QR Code Section -->
-          <div class="mt-6 text-center">
+          <!-- QR Code Section - hidden on mobile -->
+          <div class="hidden md:flex md:flex-col md:items-center md:justify-center md:w-64">
             <ClientOnly>
-              <div class="inline-block p-4 bg-white border rounded-xl shadow-sm">
-                <QRCodeVue :value="guestUrl" :size="160" level="M" />
+              <div class="p-4 bg-white border rounded-xl shadow-sm">
+                <QRCodeVue :value="guestUrl" :size="140" level="M" />
               </div>
               <template #fallback>
-                <div class="w-[160px] h-[160px] mx-auto bg-gray-100 rounded flex items-center justify-center">
+                <div class="w-[140px] h-[140px] bg-gray-100 rounded flex items-center justify-center">
                   <svg class="w-8 h-8 text-gray-400 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
                   </svg>
                 </div>
               </template>
             </ClientOnly>
-            <p class="mt-4 text-gray-600 text-sm">Scan to open on mobile</p>
-            <div class="mt-3 flex items-center justify-center gap-2">
-              <input
-                type="text"
-                readonly
-                :value="guestUrl"
-                class="flex-1 max-w-xs px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-600 truncate"
-              />
-              <button
-                @click="copyLink"
-                class="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
-              >
-                {{ copied ? 'Copied!' : 'Copy' }}
-              </button>
+            <p class="mt-3 text-gray-600 text-sm text-center">Scan to open on mobile</p>
+            <div class="mt-3 w-full">
+              <div class="flex items-center gap-2">
+                <input
+                  type="text"
+                  readonly
+                  :value="guestUrl"
+                  class="flex-1 min-w-0 px-3 py-2 text-sm border rounded-lg bg-gray-50 text-gray-600 truncate"
+                />
+                <button
+                  @click="copyLink"
+                  class="flex-shrink-0 inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50"
+                >
+                  {{ copied ? 'Copied!' : 'Copy' }}
+                </button>
+              </div>
             </div>
           </div>
         </div>
