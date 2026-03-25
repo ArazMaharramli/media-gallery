@@ -97,3 +97,17 @@ export function validateFileExtension(filename: string, mimeType: string): boole
   if (!allowedExtensions) return false
   return allowedExtensions.includes(ext)
 }
+
+// Sanitize filename to prevent XSS attacks
+export function sanitizeFilename(filename: string): string {
+  // Remove HTML tags
+  let sanitized = filename.replace(/<[^>]*>/g, '')
+  // Remove characters dangerous in HTML context or filenames
+  sanitized = sanitized.replace(/[<>"'`&;|]/g, '')
+  // Collapse multiple spaces/underscores
+  sanitized = sanitized.replace(/[\s_]+/g, '_')
+  // Remove leading/trailing underscores
+  sanitized = sanitized.replace(/^_+|_+$/g, '')
+  // Ensure valid filename
+  return sanitized || 'file'
+}

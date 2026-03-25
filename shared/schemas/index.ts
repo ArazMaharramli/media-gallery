@@ -34,6 +34,7 @@ export {
   getMediaTypeFromMime,
   isAllowedMediaType,
   validateFileExtension,
+  sanitizeFilename,
   type MediaType,
   type UploaderType,
   type UploadMediaInput,

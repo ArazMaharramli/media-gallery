@@ -8,7 +8,7 @@ import { eventsRepository } from '~/server/features/events'
 import { mediaRepository, type SerializedMedia } from './media.repository'
 import { getProcessor } from './processors'
 import { storageService } from '~/server/shared/storage'
-import { getMediaTypeFromMime, isAllowedMediaType, validateFileExtension } from '~/shared/schemas'
+import { getMediaTypeFromMime, isAllowedMediaType, validateFileExtension, sanitizeFilename } from '~/shared/schemas'
 
 export interface UploadMediaInput {
   eventId: string
@@ -48,7 +48,8 @@ export const mediaService = {
    * Saves original file, creates database record, and triggers background variant processing
    */
   async uploadMedia(input: UploadMediaInput): Promise<UploadMediaResult> {
-    const { eventId, buffer, mimeType, originalName, guestTokenId, uploadedBy } = input
+    const { eventId, buffer, mimeType, guestTokenId, uploadedBy } = input
+    const originalName = sanitizeFilename(input.originalName)
     const config = useRuntimeConfig()
     const maxUploadSize = config.upload.maxChunkedSize
 
@@ -150,7 +151,8 @@ export const mediaService = {
    * Used by tus chunked uploads - more memory efficient for large files
    */
   async uploadMediaFromFile(input: UploadMediaFromFileInput): Promise<UploadMediaResult> {
-    const { eventId, filePath, mimeType, originalName, size, guestTokenId, uploadedBy } = input
+    const { eventId, filePath, mimeType, size, guestTokenId, uploadedBy } = input
+    const originalName = sanitizeFilename(input.originalName)
 
     // Validate event exists
     const event = await eventsRepository.findById(eventId)
