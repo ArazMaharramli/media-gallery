@@ -1,7 +1,7 @@
 /**
  * Media upload composable
- * Manages upload queue using chunked tus protocol for all uploads
- * Provides pause/resume capability for all files
+ * Manages uploads using chunked tus protocol
+ * All files start uploading immediately (parallel)
  */
 import { ref, computed, watch } from 'vue'
 import { formatFileSize } from '~/utils/formatters'
@@ -28,7 +28,6 @@ export function useMediaUpload(
   options?: MediaUploadOptions
 ) {
   const uploadQueue = ref<UploadQueueItem[]>([])
-  const isProcessingQueue = ref(false)
   const isDragging = ref(false)
 
   // Initialize chunked upload and strategy composables
@@ -38,7 +37,7 @@ export function useMediaUpload(
   // Computed
   const hasActiveUploads = computed(() =>
     uploadQueue.value.some(
-      item => item.status === 'uploading' || item.status === 'pending' || item.status === 'paused'
+      item => item.status === 'uploading' || item.status === 'paused'
     )
   )
 
@@ -81,89 +80,67 @@ export function useMediaUpload(
   )
 
   /**
-   * Add files to the upload queue
+   * Add files and start uploading immediately
    */
-  function addFiles(files: File[]) {
-    const newItems: UploadQueueItem[] = []
-
+  async function addFiles(files: File[]) {
     for (const file of files) {
       // Check if file size is valid
       if (!isFileSizeValid(file)) {
-        newItems.push({
+        uploadQueue.value = [...uploadQueue.value, {
           id: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           file,
           status: 'error',
           progress: 0,
           error: `File too large. Maximum size is ${formatMaxSize()}`
-        })
+        }]
         continue
       }
 
-      newItems.push({
-        id: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      const id = `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`
+
+      // Add to queue immediately
+      uploadQueue.value = [...uploadQueue.value, {
+        id,
         file,
-        status: 'pending',
+        status: 'uploading',
         progress: 0
-      })
-    }
+      }]
 
-    uploadQueue.value = [...uploadQueue.value, ...newItems]
-
-    // Start processing if not already
-    if (!isProcessingQueue.value) {
-      processQueue()
+      // Start upload (don't await - let them run in parallel)
+      startUpload(id, file)
     }
   }
 
   /**
-   * Process the upload queue (one at a time)
+   * Start uploading a file
    */
-  async function processQueue() {
-    if (isProcessingQueue.value) return
-    isProcessingQueue.value = true
+  async function startUpload(id: string, file: File) {
+    try {
+      // Create tus upload with metadata
+      const tusId = await chunkedUpload.createUpload(file, options?.metadata || {})
 
-    while (true) {
-      // Find next pending item
-      const pendingItem = uploadQueue.value.find(item => item.status === 'pending')
-      if (!pendingItem) break
-
-      await uploadFile(pendingItem)
-    }
-
-    isProcessingQueue.value = false
-  }
-
-  /**
-   * Upload a file using chunked/tus protocol
-   */
-  async function uploadFile(item: UploadQueueItem) {
-    const index = uploadQueue.value.findIndex(i => i.id === item.id)
-    if (index === -1) return
-
-    // Create tus upload with metadata (async for checksum calculation)
-    const tusId = await chunkedUpload.createUpload(item.file, options?.metadata || {})
-
-    // Update queue item with tus upload ID and status
-    uploadQueue.value[index] = {
-      ...uploadQueue.value[index],
-      status: 'uploading',
-      tusUploadId: tusId
-    }
-
-    // Start the chunked upload
-    await chunkedUpload.start(tusId)
-
-    // Wait for completion, error, or pause (watch handles status updates)
-    await new Promise<void>((resolve) => {
-      const checkInterval = setInterval(() => {
-        const tusUpload = chunkedUpload.getUpload(tusId)
-        // Resolve when completed, errored, or paused (allow queue to continue)
-        if (!tusUpload || tusUpload.status === 'completed' || tusUpload.status === 'error' || tusUpload.status === 'paused') {
-          clearInterval(checkInterval)
-          resolve()
+      // Update queue item with tus upload ID
+      const index = uploadQueue.value.findIndex(i => i.id === id)
+      if (index !== -1) {
+        uploadQueue.value[index] = {
+          ...uploadQueue.value[index],
+          tusUploadId: tusId
         }
-      }, 100)
-    })
+      }
+
+      // Start the upload
+      await chunkedUpload.start(tusId)
+    } catch (err) {
+      // Handle creation/start errors
+      const index = uploadQueue.value.findIndex(i => i.id === id)
+      if (index !== -1) {
+        uploadQueue.value[index] = {
+          ...uploadQueue.value[index],
+          status: 'error',
+          error: err instanceof Error ? err.message : 'Upload failed to start'
+        }
+      }
+    }
   }
 
   /**
@@ -174,9 +151,6 @@ export function useMediaUpload(
     if (!item?.tusUploadId) return
 
     chunkedUpload.pause(item.tusUploadId)
-
-    // Queue will automatically continue to next pending item
-    // since uploadFile resolves when paused
   }
 
   /**
@@ -193,12 +167,9 @@ export function useMediaUpload(
    * Cancel an upload
    */
   function cancelUpload(id: string) {
-    const index = uploadQueue.value.findIndex(item => item.id === id)
-    if (index === -1) return
+    const item = uploadQueue.value.find(i => i.id === id)
 
-    const item = uploadQueue.value[index]
-
-    if (item.tusUploadId) {
+    if (item?.tusUploadId) {
       chunkedUpload.cancel(item.tusUploadId)
     }
 
@@ -220,19 +191,18 @@ export function useMediaUpload(
       chunkedUpload.remove(item.tusUploadId)
     }
 
+    // Reset status and restart
     uploadQueue.value[index] = {
       ...uploadQueue.value[index],
-      status: 'pending',
+      status: 'uploading',
       progress: 0,
       bytesUploaded: 0,
       error: undefined,
       tusUploadId: undefined
     }
 
-    // Start processing if not already
-    if (!isProcessingQueue.value) {
-      processQueue()
-    }
+    // Start upload again
+    startUpload(item.id, item.file)
   }
 
   /**
@@ -261,7 +231,7 @@ export function useMediaUpload(
     }
 
     uploadQueue.value = uploadQueue.value.filter(
-      item => item.status === 'pending' || item.status === 'uploading' || item.status === 'paused'
+      item => item.status === 'uploading' || item.status === 'paused'
     )
   }
 
@@ -287,7 +257,6 @@ export function useMediaUpload(
   return {
     // State
     uploadQueue,
-    isProcessingQueue,
     isDragging,
     hasActiveUploads,
     completedCount,
