@@ -4,7 +4,7 @@
  */
 import { prisma } from '~/server/utils/prisma'
 import { serializeMedia, serializeMediaArray } from '~/server/shared/utils'
-import type { Media, MediaType, UploaderType, ProcessingStatus } from '@prisma/client'
+import type { Media, MediaType, UploaderType, ProcessingStatus, ApprovalStatus } from '@prisma/client'
 
 export interface CreateMediaData {
   eventId: string
@@ -20,6 +20,7 @@ export interface CreateMediaData {
   thumbnailFallback?: string | null
   preview?: string | null
   previewFallback?: string | null
+  approvalStatus?: ApprovalStatus
 }
 
 export interface UpdateMediaData {
@@ -29,6 +30,7 @@ export interface UpdateMediaData {
   previewFallback?: string | null
   processingStatus?: ProcessingStatus
   processingError?: string | null
+  approvalStatus?: ApprovalStatus
 }
 
 export interface PaginationOptions {
@@ -98,6 +100,7 @@ export const mediaRepository = {
 
   /**
    * Find media by IDs OR guestTokenId (for shared + own uploads)
+   * Only returns approved items from ids list, but all own uploads
    */
   async findByIdsOrGuestTokenId(
     ids: string[],
@@ -106,7 +109,7 @@ export const mediaRepository = {
   ): Promise<{ items: SerializedMedia[]; total: number }> {
     const where = {
       OR: [
-        { id: { in: ids } },
+        { id: { in: ids }, approvalStatus: 'approved' as ApprovalStatus },
         { guestTokenId }
       ]
     }
@@ -123,20 +126,24 @@ export const mediaRepository = {
   },
 
   /**
-   * Find all media for an event with count
+   * Find all media for an event with count (optionally filtered by approval status)
    */
   async findByEventIdWithCount(
     eventId: string,
-    options?: PaginationOptions
+    options?: PaginationOptions,
+    approvalStatus?: ApprovalStatus
   ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const where = approvalStatus
+      ? { eventId, approvalStatus }
+      : { eventId }
     const [items, total] = await prisma.$transaction([
       prisma.media.findMany({
-        where: { eventId },
+        where,
         orderBy: { createdAt: 'desc' },
         skip: options?.skip,
         take: options?.take
       }),
-      prisma.media.count({ where: { eventId } })
+      prisma.media.count({ where })
     ])
     return { items: serializeMediaArray(items), total }
   },
@@ -147,6 +154,8 @@ export const mediaRepository = {
   async create(data: CreateMediaData): Promise<SerializedMedia> {
     // Videos start as 'pending', photos are 'completed' (no background processing)
     const processingStatus = data.type === 'video' ? 'pending' : 'completed'
+    // Use provided approval status or default to 'approved'
+    const approvalStatus = data.approvalStatus ?? 'approved'
 
     const media = await prisma.media.create({
       data: {
@@ -163,7 +172,8 @@ export const mediaRepository = {
         thumbnailFallback: data.thumbnailFallback ?? null,
         preview: data.preview ?? null,
         previewFallback: data.previewFallback ?? null,
-        processingStatus
+        processingStatus,
+        approvalStatus
       }
     })
     return serializeMedia(media)
@@ -206,6 +216,69 @@ export const mediaRepository = {
       where: { id: { in: ids } }
     })
     return result.count
+  },
+
+  /**
+   * Find approved media for an event OR own uploads (for guest gallery view)
+   * Guests see: all approved media + their own uploads (any status)
+   */
+  async findApprovedOrOwnByEventId(
+    eventId: string,
+    guestTokenId: string,
+    options?: PaginationOptions
+  ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const where = {
+      eventId,
+      OR: [
+        { approvalStatus: 'approved' as ApprovalStatus },
+        { guestTokenId }
+      ]
+    }
+    const [items, total] = await prisma.$transaction([
+      prisma.media.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
+      }),
+      prisma.media.count({ where })
+    ])
+    return { items: serializeMediaArray(items), total }
+  },
+
+  /**
+   * Find pending media for an event (photographer approval queue)
+   */
+  async findPendingByEventId(
+    eventId: string,
+    options?: PaginationOptions
+  ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const where = {
+      eventId,
+      approvalStatus: 'pending' as ApprovalStatus
+    }
+    const [items, total] = await prisma.$transaction([
+      prisma.media.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
+      }),
+      prisma.media.count({ where })
+    ])
+    return { items: serializeMediaArray(items), total }
+  },
+
+  /**
+   * Count pending media for an event
+   */
+  async countPendingByEventId(eventId: string): Promise<number> {
+    return prisma.media.count({
+      where: {
+        eventId,
+        approvalStatus: 'pending'
+      }
+    })
   }
 }
 

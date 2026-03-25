@@ -78,6 +78,26 @@
       {{ uploaderName }}
     </div>
 
+    <!-- Pending Badge -->
+    <div
+      v-if="showPendingBadge"
+      class="absolute top-2 right-2 bg-amber-500 text-white text-xs px-1.5 py-0.5 rounded z-10"
+    >
+      Pending
+    </div>
+
+    <!-- Status Badge (for photographer view) -->
+    <div
+      v-if="showStatusBadge && (media.approvalStatus === 'pending' || media.approvalStatus === 'rejected')"
+      class="absolute top-2 text-white text-xs px-1.5 py-0.5 rounded z-10"
+      :class="[
+        statusBadgePosition,
+        media.approvalStatus === 'pending' ? 'bg-amber-500' : 'bg-red-600'
+      ]"
+    >
+      {{ media.approvalStatus === 'pending' ? 'Pending' : 'Rejected' }}
+    </div>
+
     <!-- Video Badge -->
     <div
       v-if="media.type === 'video'"
@@ -101,6 +121,37 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
           </svg>
         </span>
+        <!-- Approval Actions -->
+        <button
+          v-if="showApprovalActions"
+          @click.stop="$emit('approve')"
+          :disabled="isApproving || isRejecting"
+          class="p-2 bg-green-600 hover:bg-green-700 rounded-full shadow-lg text-white disabled:opacity-50"
+          title="Approve"
+        >
+          <svg v-if="!isApproving" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </button>
+        <button
+          v-if="showApprovalActions"
+          @click.stop="$emit('reject')"
+          :disabled="isApproving || isRejecting"
+          class="p-2 bg-red-600 hover:bg-red-700 rounded-full shadow-lg text-white disabled:opacity-50"
+          title="Reject"
+        >
+          <svg v-if="!isRejecting" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+          <svg v-else class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </button>
         <button
           v-if="showDelete"
           @click.stop="$emit('delete')"
@@ -125,12 +176,22 @@ interface Props {
   isSelected?: boolean
   uploaderName?: string | null
   showDelete?: boolean
+  showPendingBadge?: boolean
+  showStatusBadge?: boolean
+  showApprovalActions?: boolean
+  isApproving?: boolean
+  isRejecting?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectionMode: false,
   isSelected: false,
-  showDelete: true
+  showDelete: true,
+  showPendingBadge: false,
+  showStatusBadge: false,
+  showApprovalActions: false,
+  isApproving: false,
+  isRejecting: false
 })
 
 const emit = defineEmits<{
@@ -138,9 +199,19 @@ const emit = defineEmits<{
   preview: []
   delete: []
   select: []
+  approve: []
+  reject: []
 }>()
 
 const thumbnailError = ref(false)
+
+// Position the status badge - avoid overlap with other elements
+const statusBadgePosition = computed(() => {
+  if (props.selectionMode) {
+    return 'right-10' // Move left when preview button is visible
+  }
+  return 'right-2'
+})
 
 // For videos without thumbnails, show placeholder immediately
 const showPlaceholder = computed(() => {

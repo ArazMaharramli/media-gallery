@@ -10,6 +10,7 @@ Photographers can:
 - Create events with name, date, and description
 - Upload photos and videos
 - View and manage uploaded media
+- Approve or reject guest uploads before they appear in the gallery
 - Generate shareable guest links with customizable permissions
 - Revoke guest links to prevent access
 - Delete media
@@ -27,6 +28,7 @@ Photographers can:
 | [P5](./P5-delete-media.md) | Delete Media | Remove uploaded media | Medium |
 | [P6](./P6-share-gallery.md) | Share Gallery | Generate guest links with permissions | High |
 | [P8](./P8-deactivate-upload-link.md) | Revoke Guest Link | Disable guest links | Low |
+| [P9](./P9-media-approval.md) | Media Approval | Review and approve guest uploads | High |
 
 ---
 

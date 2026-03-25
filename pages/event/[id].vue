@@ -15,7 +15,7 @@
       <div class="border-b border-gray-200">
         <nav class="flex -mb-px">
           <button
-            v-if="media.length > 0"
+            v-if="totalMediaCount > 0 || pendingCount > 0 || statusFilter !== 'all'"
             @click="activeTab = 'media'"
             class="px-6 py-3 text-sm font-medium border-b-2 transition-colors"
             :class="activeTab === 'media' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
@@ -27,6 +27,13 @@
               Media
               <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
                 {{ totalMediaCount }}
+              </span>
+              <span
+                v-if="pendingCount > 0"
+                class="text-xs bg-amber-100 text-amber-600 px-1.5 py-0.5 rounded-full"
+                title="Pending approval"
+              >
+                {{ pendingCount }} pending
               </span>
             </span>
           </button>
@@ -96,7 +103,12 @@
         :is-loading-more="isLoadingMore"
         :has-more="hasMoreMedia"
         :total-count="totalMediaCount"
+        :status-filter="statusFilter"
+        :pending-count="pendingCount"
+        :approving-id="approvingId"
+        :rejecting-id="rejectingId"
         @update:view-mode="viewMode = $event"
+        @update:status-filter="setStatusFilter"
         @enter-selection-mode="toggleSelectionMode"
         @exit-selection-mode="toggleSelectionMode"
         @select-all="selectAll"
@@ -106,6 +118,8 @@
         @confirm-delete="confirmDelete"
         @delete-selected="showBatchDeleteModal = true"
         @load-more="loadMoreMedia"
+        @approve="approveMedia"
+        @reject="rejectMedia"
       />
 
       <!-- Links Tab Content -->
@@ -248,7 +262,8 @@ const event = computed(() => eventResponse.value?.data)
 // Composables
 const {
   media, totalCount: totalMediaCount, hasMore: hasMoreMedia,
-  isLoadingMore, fetchMedia, loadMore: loadMoreMedia, refresh: refreshMedia
+  isLoadingMore, fetchMedia, loadMore: loadMoreMedia, refresh: refreshMedia,
+  statusFilter, pendingCount, setStatusFilter
 } = useEventMedia(eventId, { autoFetch: false })
 
 const {
@@ -296,6 +311,10 @@ const showShareModal = ref(false)
 const showDeleteModal = ref(false)
 const showBatchDeleteModal = ref(false)
 
+// Approval state
+const approvingId = ref<string | null>(null)
+const rejectingId = ref<string | null>(null)
+
 // Delete state
 const mediaToDelete = ref<MediaOutput | null>(null)
 const isDeleting = ref(false)
@@ -320,12 +339,13 @@ onUnmounted(() => {
 // Initialize
 await fetchMedia(1)
 
-if (media.value.length === 0) {
+if (media.value.length === 0 && statusFilter.value === 'all') {
   activeTab.value = 'upload'
 }
 
-watch(media, (newMedia) => {
-  if (newMedia.length === 0 && activeTab.value === 'media') {
+watch([media, statusFilter], ([newMedia, newFilter]) => {
+  // Only auto-switch to upload when viewing ALL media and it's empty
+  if (newMedia.length === 0 && newFilter === 'all' && activeTab.value === 'media') {
     activeTab.value = 'upload'
   }
 })
@@ -480,6 +500,33 @@ async function createGuestLink(data: CreateGuestTokenInput) {
 function closeCreateLinkModal() {
   showCreateLinkModal.value = false
   createLinkError.value = null
+}
+
+// Approval functions
+async function approveMedia(mediaId: string) {
+  approvingId.value = mediaId
+  try {
+    await $fetch(`/api/media/${mediaId}/approve`, { method: 'POST' })
+    showToastMessage('Media approved')
+    await refreshMedia()
+  } catch (err: any) {
+    showToastMessage(err.data?.error?.message || 'Failed to approve media')
+  } finally {
+    approvingId.value = null
+  }
+}
+
+async function rejectMedia(mediaId: string) {
+  rejectingId.value = mediaId
+  try {
+    await $fetch(`/api/media/${mediaId}/reject`, { method: 'POST' })
+    showToastMessage('Media rejected')
+    await refreshMedia()
+  } catch (err: any) {
+    showToastMessage(err.data?.error?.message || 'Failed to reject media')
+  } finally {
+    rejectingId.value = null
+  }
 }
 
 useHead({

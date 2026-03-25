@@ -3,9 +3,10 @@
  * Manages media fetching with pagination and CRUD operations
  */
 import { ref, computed, onMounted, watch, type Ref } from 'vue'
-import type { MediaOutput } from '~/shared/schemas'
+import type { MediaOutput, ApprovalStatus } from '~/shared/schemas'
 
 export type Media = MediaOutput
+export type StatusFilter = ApprovalStatus | 'all'
 
 export interface UseEventMediaOptions {
   itemsPerPage?: number
@@ -20,6 +21,8 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
   const currentPage = ref(1)
   const totalCount = ref(0)
   const hasMore = ref(true)
+  const statusFilter = ref<StatusFilter>('all')
+  const pendingCount = ref(0)
 
   // Loading states
   const isLoading = ref(false)
@@ -44,9 +47,12 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
     error.value = null
 
     try {
-      const response = await $fetch(`/api/events/${eventId}/media`, {
-        params: { page, limit: itemsPerPage }
-      }) as any
+      const params: Record<string, any> = { page, limit: itemsPerPage }
+      if (statusFilter.value !== 'all') {
+        params.status = statusFilter.value
+      }
+
+      const response = await $fetch(`/api/events/${eventId}/media`, { params }) as any
 
       if (append) {
         media.value = [...media.value, ...response.data.items]
@@ -57,12 +63,23 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
       totalCount.value = response.data.pagination.total
       hasMore.value = response.data.pagination.hasMore
       currentPage.value = page
+      pendingCount.value = response.data.pendingCount ?? 0
     } catch (err: any) {
       error.value = err.data?.error?.message || 'Failed to load media'
     } finally {
       isLoading.value = false
       isLoadingMore.value = false
     }
+  }
+
+  /**
+   * Set status filter and refetch
+   */
+  async function setStatusFilter(status: StatusFilter) {
+    statusFilter.value = status
+    currentPage.value = 1
+    hasMore.value = true
+    await fetchMedia(1, false)
   }
 
   /**
@@ -169,6 +186,8 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
     isDeleting,
     error,
     isEmpty,
+    statusFilter,
+    pendingCount,
 
     // Actions
     fetchMedia,
@@ -176,6 +195,7 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
     refresh,
     deleteMedia,
     deleteMediaBatch,
+    setStatusFilter,
 
     // Utils
     setupInfiniteScroll

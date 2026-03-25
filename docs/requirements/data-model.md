@@ -34,11 +34,12 @@ This document describes the database schema and entity relationships.
 │ canDelete BOOLEAN │  │ storageKey VARCHAR(500) │
 │ mediaIds  UUID[]  │  │ type      ENUM          │
 │ expiresAt TS      │  │ uploadedBy ENUM         │
-│ createdAt TS      │  │ thumbnail VARCHAR       │
-└───────────────────┘  │ thumbnailFallback VAR   │
-        │              │ preview   VARCHAR       │
-        │ 1:N          │ previewFallback VARCHAR │
-        └─────────────►│ createdAt TIMESTAMP     │
+│ createdAt TS      │  │ approvalStatus ENUM     │
+└───────────────────┘  │ thumbnail VARCHAR       │
+        │              │ thumbnailFallback VAR   │
+        │ 1:N          │ preview   VARCHAR       │
+        └─────────────►│ previewFallback VARCHAR │
+                       │ createdAt TIMESTAMP     │
                        └─────────────────────────┘
 ```
 
@@ -111,6 +112,7 @@ Represents an uploaded photo or video with optimized variants.
 | `storageKey` | VARCHAR(500) | NOT NULL | Full path in storage |
 | `type` | ENUM | NOT NULL | "photo" or "video" |
 | `uploadedBy` | ENUM | NOT NULL | "photographer" or "guest" |
+| `approvalStatus` | ENUM | NOT NULL, default "approved" | "pending", "approved", or "rejected" |
 | `thumbnail` | VARCHAR(255) | NULLABLE | Thumbnail filename (WebP) |
 | `thumbnailFallback` | VARCHAR(255) | NULLABLE | Thumbnail fallback (JPEG) |
 | `preview` | VARCHAR(255) | NULLABLE | Preview filename (WebP/WebM) |
@@ -122,6 +124,7 @@ Represents an uploaded photo or video with optimized variants.
 - Foreign key index on `eventId`
 - Foreign key index on `guestTokenId`
 - Index on `createdAt` (for sorting)
+- Index on `approvalStatus` (for filtering)
 
 ---
 
@@ -174,21 +177,22 @@ model GuestToken {
 }
 
 model Media {
-  id                String       @id @default(uuid())
+  id                String         @id @default(uuid())
   eventId           String
   guestTokenId      String?
-  filename          String       @db.VarChar(255)
-  originalName      String       @db.VarChar(255)
-  mimeType          String       @db.VarChar(100)
+  filename          String         @db.VarChar(255)
+  originalName      String         @db.VarChar(255)
+  mimeType          String         @db.VarChar(100)
   size              BigInt
-  storageKey        String       @db.VarChar(500)
+  storageKey        String         @db.VarChar(500)
   type              MediaType
   uploadedBy        UploaderType
-  thumbnail         String?      @db.VarChar(255)
-  thumbnailFallback String?      @db.VarChar(255)
-  preview           String?      @db.VarChar(255)
-  previewFallback   String?      @db.VarChar(255)
-  createdAt         DateTime     @default(now())
+  approvalStatus    ApprovalStatus @default(approved)
+  thumbnail         String?        @db.VarChar(255)
+  thumbnailFallback String?        @db.VarChar(255)
+  preview           String?        @db.VarChar(255)
+  previewFallback   String?        @db.VarChar(255)
+  createdAt         DateTime       @default(now())
 
   event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   guestToken GuestToken? @relation(fields: [guestTokenId], references: [id], onDelete: SetNull)
@@ -196,6 +200,7 @@ model Media {
   @@index([eventId])
   @@index([guestTokenId])
   @@index([createdAt])
+  @@index([approvalStatus])
   @@map("media")
 }
 
@@ -207,6 +212,12 @@ enum MediaType {
 enum UploaderType {
   photographer
   guest
+}
+
+enum ApprovalStatus {
+  pending
+  approved
+  rejected
 }
 ```
 

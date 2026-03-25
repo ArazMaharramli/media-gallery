@@ -24,14 +24,19 @@ export class ImageProcessor implements MediaProcessor {
     return ImageProcessor.SUPPORTED_TYPES.includes(mimeType)
   }
 
-  async process(buffer: Buffer, options: ProcessOptions): Promise<ProcessedMedia> {
+  /**
+   * Process image and generate variants
+   * @param input - Buffer or file path. File path is more memory-efficient for large images
+   *                as Sharp streams the file instead of loading it entirely into memory.
+   */
+  async process(input: Buffer | string, options: ProcessOptions): Promise<ProcessedMedia> {
     const { outputDir, baseFilename } = options
     const baseName = baseFilename.replace(/\.[^/.]+$/, '')
 
     // Generate variants in parallel for better performance
     const [thumbnail, preview] = await Promise.all([
-      this.generateThumbnail(buffer, outputDir, baseName),
-      this.generatePreview(buffer, outputDir, baseName)
+      this.generateThumbnail(input, outputDir, baseName),
+      this.generatePreview(input, outputDir, baseName)
     ])
 
     return {
@@ -43,19 +48,20 @@ export class ImageProcessor implements MediaProcessor {
   }
 
   private async generateThumbnail(
-    buffer: Buffer,
+    input: Buffer | string,
     outputDir: string,
     baseName: string
   ): Promise<{ webp: string; jpeg: string }> {
     const thumbnailWebp = `${baseName}_thumb.webp`
     const thumbnailJpeg = `${baseName}_thumb.jpg`
 
+    // Sharp accepts both Buffer and file path - file path uses streaming (more memory efficient)
     await Promise.all([
-      sharp(buffer)
+      sharp(input)
         .resize(THUMBNAIL_WIDTH, null, { withoutEnlargement: true })
         .webp({ quality: WEBP_QUALITY })
         .toFile(join(outputDir, thumbnailWebp)),
-      sharp(buffer)
+      sharp(input)
         .resize(THUMBNAIL_WIDTH, null, { withoutEnlargement: true })
         .jpeg({ quality: JPEG_QUALITY })
         .toFile(join(outputDir, thumbnailJpeg))
@@ -65,7 +71,7 @@ export class ImageProcessor implements MediaProcessor {
   }
 
   private async generatePreview(
-    buffer: Buffer,
+    input: Buffer | string,
     outputDir: string,
     baseName: string
   ): Promise<{ webp: string; jpeg: string }> {
@@ -73,11 +79,11 @@ export class ImageProcessor implements MediaProcessor {
     const previewJpeg = `${baseName}_preview.jpg`
 
     await Promise.all([
-      sharp(buffer)
+      sharp(input)
         .resize(PREVIEW_WIDTH, null, { withoutEnlargement: true })
         .webp({ quality: WEBP_QUALITY })
         .toFile(join(outputDir, previewWebp)),
-      sharp(buffer)
+      sharp(input)
         .resize(PREVIEW_WIDTH, null, { withoutEnlargement: true })
         .jpeg({ quality: JPEG_QUALITY })
         .toFile(join(outputDir, previewJpeg))

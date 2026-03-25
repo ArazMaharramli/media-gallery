@@ -131,6 +131,7 @@
             :key="item.id"
             :media="item"
             :show-delete="canDeleteItem(item)"
+            :show-pending-badge="isOwnPendingItem(item)"
             @click="openLightbox(index)"
             @delete="confirmDeleteMedia(item)"
           />
@@ -161,7 +162,15 @@
               </div>
             </div>
             <div class="flex-1 min-w-0">
-              <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+              <div class="flex items-center gap-2">
+                <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+                <span
+                  v-if="isOwnPendingItem(item)"
+                  class="flex-shrink-0 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"
+                >
+                  Pending
+                </span>
+              </div>
               <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
                 <span>{{ item.type === 'video' ? 'Video' : 'Photo' }}</span>
                 <span>{{ formatFileSize(item.size) }}</span>
@@ -432,6 +441,11 @@ const guestUrl = computed(() => {
 function canDeleteItem(item: MediaOutput): boolean {
   if (item.guestTokenId && item.guestTokenId === tokenId.value) return true
   return permissions.value?.canDelete === true
+}
+
+// Check if item is own pending upload
+function isOwnPendingItem(item: MediaOutput): boolean {
+  return item.guestTokenId === tokenId.value && item.approvalStatus === 'pending'
 }
 
 // Fetch media with current filter

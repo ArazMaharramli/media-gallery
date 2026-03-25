@@ -31,6 +31,7 @@ export {
   uploaderTypeSchema,
   uploadMediaSchema,
   mediaOutputSchema,
+  approvalStatusSchema,
   getMediaTypeFromMime,
   isAllowedMediaType,
   validateFileExtension,
@@ -38,7 +39,8 @@ export {
   type MediaType,
   type UploaderType,
   type UploadMediaInput,
-  type MediaOutput
+  type MediaOutput,
+  type ApprovalStatus
 } from './media.schema'
 
 // Tokens

@@ -3,7 +3,6 @@
  * Orchestrates media upload, processing, and deletion operations
  */
 import { join } from 'path'
-import { readFile, stat } from 'fs/promises'
 import { eventsRepository } from '~/server/features/events'
 import { mediaRepository, type SerializedMedia } from './media.repository'
 import { getProcessor } from './processors'
@@ -125,6 +124,7 @@ export const mediaService = {
     }
 
     // Create database record
+    // Guest uploads require approval, photographer uploads are auto-approved
     const media = await mediaRepository.create({
       eventId,
       guestTokenId: guestTokenId ?? null,
@@ -135,6 +135,7 @@ export const mediaService = {
       storageKey,
       type: mediaType,
       uploadedBy,
+      approvalStatus: uploadedBy === 'guest' ? 'pending' : 'approved',
       ...variants
     })
 
@@ -200,9 +201,8 @@ export const mediaService = {
         if (processor) {
           const outputDir = storageService.getEventDir(eventId)
           const finalPath = join(outputDir, filename)
-          // Read file for image processing (images are typically smaller)
-          const buffer = await readFile(finalPath)
-          const result = await processor.process(buffer, {
+          // Pass file path directly - Sharp streams the file instead of loading into memory
+          const result = await processor.process(finalPath, {
             outputDir,
             baseFilename: filename
           })
@@ -220,6 +220,7 @@ export const mediaService = {
     }
 
     // Create database record
+    // Guest uploads require approval, photographer uploads are auto-approved
     const media = await mediaRepository.create({
       eventId,
       guestTokenId: guestTokenId ?? null,
@@ -230,6 +231,7 @@ export const mediaService = {
       storageKey,
       type: mediaType,
       uploadedBy,
+      approvalStatus: uploadedBy === 'guest' ? 'pending' : 'approved',
       ...variants
     })
 

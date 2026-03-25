@@ -32,6 +32,9 @@ export const mediaTypeSchema = z.enum(['photo', 'video'])
 // Uploader type enum
 export const uploaderTypeSchema = z.enum(['photographer', 'guest'])
 
+// Approval status enum
+export const approvalStatusSchema = z.enum(['pending', 'approved', 'rejected'])
+
 // Upload validation
 export const uploadMediaSchema = z.object({
   mimeType: z.enum(ALLOWED_MEDIA_TYPES, {
@@ -56,6 +59,7 @@ export const mediaOutputSchema = z.object({
   storageKey: z.string(),
   type: mediaTypeSchema,
   uploadedBy: uploaderTypeSchema,
+  approvalStatus: approvalStatusSchema,
   thumbnail: z.string().nullable(),
   thumbnailFallback: z.string().nullable(),
   preview: z.string().nullable(),
@@ -66,6 +70,7 @@ export const mediaOutputSchema = z.object({
 // Types
 export type MediaType = z.infer<typeof mediaTypeSchema>
 export type UploaderType = z.infer<typeof uploaderTypeSchema>
+export type ApprovalStatus = z.infer<typeof approvalStatusSchema>
 export type UploadMediaInput = z.infer<typeof uploadMediaSchema>
 export type MediaOutput = z.infer<typeof mediaOutputSchema>
 

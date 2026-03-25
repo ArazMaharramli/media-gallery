@@ -22,6 +22,11 @@
           </svg>
         </button>
 
+        <!-- Custom Actions Slot -->
+        <div v-if="$slots.actions" class="absolute top-4 right-16 z-10 flex items-center gap-1">
+          <slot name="actions" />
+        </div>
+
         <!-- Navigation - Previous -->
         <button
           v-if="hasPrev"

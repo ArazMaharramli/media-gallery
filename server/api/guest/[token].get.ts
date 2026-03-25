@@ -35,7 +35,7 @@ export default defineEventHandler(async (event) => {
     media = result.items
     total = result.total
   } else if (guestToken.mediaIds?.length) {
-    // Specific media assigned + own uploads (single query)
+    // Specific media assigned + own uploads (approved items from list + all own)
     const result = await mediaRepository.findByIdsOrGuestTokenId(
       guestToken.mediaIds,
       guestToken.id,
@@ -44,8 +44,8 @@ export default defineEventHandler(async (event) => {
     media = result.items
     total = result.total
   } else {
-    // Can view all event media
-    const result = await mediaRepository.findByEventIdWithCount(guestToken.eventId, { skip, take: limit })
+    // Can view all approved event media + own uploads (any status)
+    const result = await mediaRepository.findApprovedOrOwnByEventId(guestToken.eventId, guestToken.id, { skip, take: limit })
     media = result.items
     total = result.total
   }

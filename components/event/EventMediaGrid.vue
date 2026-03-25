@@ -6,6 +6,21 @@
         <span v-if="selectionMode && selectedCount > 0" class="text-sm text-indigo-600">
           {{ selectedCount }} selected
         </span>
+        <!-- Status Filter -->
+        <div v-if="!selectionMode" class="flex items-center gap-2">
+          <select
+            :value="statusFilter"
+            @change="$emit('update:statusFilter', ($event.target as HTMLSelectElement).value)"
+            class="text-sm border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+          >
+            <option value="all">All Media</option>
+            <option value="approved">Approved</option>
+            <option value="pending">
+              Pending{{ pendingCount > 0 ? ` (${pendingCount})` : '' }}
+            </option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
       </div>
       <div class="flex items-center gap-2">
         <template v-if="selectionMode">
@@ -82,10 +97,16 @@
         :is-selected="isSelected(item.id)"
         :selection-mode="selectionMode"
         :uploader-name="getUploaderName(item.guestTokenId)"
+        :show-status-badge="true"
+        :show-approval-actions="item.approvalStatus === 'pending' && !selectionMode"
+        :is-approving="approvingId === item.id"
+        :is-rejecting="rejectingId === item.id"
         @click="$emit('openLightbox', index)"
         @select="$emit('toggleSelection', item.id)"
         @preview="$emit('openLightbox', index)"
         @delete="$emit('confirmDelete', item)"
+        @approve="$emit('approve', item.id)"
+        @reject="$emit('reject', item.id)"
       />
     </div>
 
@@ -141,7 +162,21 @@
 
         <!-- Media Info -->
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
+            <span
+              v-if="item.approvalStatus === 'pending'"
+              class="flex-shrink-0 text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded"
+            >
+              Pending
+            </span>
+            <span
+              v-if="item.approvalStatus === 'rejected'"
+              class="flex-shrink-0 text-xs bg-red-100 text-red-700 px-1.5 py-0.5 rounded"
+            >
+              Rejected
+            </span>
+          </div>
           <div class="flex items-center gap-2 mt-1">
             <span class="text-xs text-gray-500 capitalize">{{ item.type }}</span>
             <span
@@ -155,6 +190,37 @@
 
         <!-- Actions -->
         <div class="flex-shrink-0 flex items-center gap-2">
+          <!-- Approval Actions -->
+          <template v-if="item.approvalStatus === 'pending' && !selectionMode">
+            <button
+              @click.stop="$emit('approve', item.id)"
+              :disabled="approvingId === item.id || rejectingId === item.id"
+              class="p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-full transition-colors disabled:opacity-50"
+              title="Approve"
+            >
+              <svg v-if="approvingId !== item.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+              <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            </button>
+            <button
+              @click.stop="$emit('reject', item.id)"
+              :disabled="approvingId === item.id || rejectingId === item.id"
+              class="p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-full transition-colors disabled:opacity-50"
+              title="Reject"
+            >
+              <svg v-if="rejectingId !== item.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+              <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+              </svg>
+            </button>
+          </template>
           <button
             @click.stop="$emit('openLightbox', index)"
             class="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-200 rounded-full transition-colors"
@@ -196,7 +262,9 @@
 </template>
 
 <script setup lang="ts">
-import type { MediaOutput, GuestTokenOutput } from '~/shared/schemas'
+import type { MediaOutput, GuestTokenOutput, ApprovalStatus } from '~/shared/schemas'
+
+type StatusFilter = ApprovalStatus | 'all'
 
 interface Props {
   media: MediaOutput[]
@@ -207,12 +275,22 @@ interface Props {
   isLoadingMore: boolean
   hasMore: boolean
   totalCount: number
+  statusFilter?: StatusFilter
+  pendingCount?: number
+  approvingId?: string | null
+  rejectingId?: string | null
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  statusFilter: 'all',
+  pendingCount: 0,
+  approvingId: null,
+  rejectingId: null
+})
 
 const emit = defineEmits<{
   'update:viewMode': [mode: 'grid' | 'list']
+  'update:statusFilter': [status: StatusFilter]
   enterSelectionMode: []
   exitSelectionMode: []
   selectAll: []
@@ -222,6 +300,8 @@ const emit = defineEmits<{
   confirmDelete: [media: MediaOutput]
   deleteSelected: []
   loadMore: []
+  approve: [id: string]
+  reject: [id: string]
 }>()
 
 const loadMoreTrigger = ref<HTMLElement | null>(null)

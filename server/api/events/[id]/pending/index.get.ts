@@ -2,7 +2,6 @@ import { requireEvent } from '~/server/shared/middleware'
 import { mediaRepository } from '~/server/features/media'
 import { resolveMediaUrlsArray } from '~/server/shared/utils'
 import { successResponse } from '~/server/utils/response'
-import type { ApprovalStatus } from '@prisma/client'
 
 export default defineEventHandler(async (event) => {
   const eventData = await requireEvent(event)
@@ -11,16 +10,8 @@ export default defineEventHandler(async (event) => {
   const page = Math.max(1, parseInt(query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 20))
   const skip = (page - 1) * limit
-  const status = query.status as ApprovalStatus | 'all' | undefined
 
-  const { items, total } = await mediaRepository.findByEventIdWithCount(
-    eventData.id,
-    { skip, take: limit },
-    status && status !== 'all' ? status : undefined
-  )
-
-  // Also get pending count for the filter badge
-  const pendingCount = await mediaRepository.countPendingByEventId(eventData.id)
+  const { items, total } = await mediaRepository.findPendingByEventId(eventData.id, { skip, take: limit })
 
   const totalPages = Math.ceil(total / limit)
   const hasMore = page < totalPages
@@ -33,7 +24,6 @@ export default defineEventHandler(async (event) => {
       total,
       totalPages,
       hasMore
-    },
-    pendingCount
+    }
   })
 })
