@@ -10,6 +10,15 @@ Feature specifications organized by user persona.
 |---------|-------------|
 | [Photographer](./photographer/) | Creates and manages events |
 | [Guest](./guest/) | Accesses event via shared link (view/upload/delete based on permissions) |
+| [Client](./client/) | Views shared galleries (legacy, see Guest) |
+
+---
+
+## Technical Features
+
+| Feature | Description |
+|---------|-------------|
+| [Uploads](./uploads/) | Large file handling (chunked uploads, range requests) |
 
 **Note:** "Client" is now unified under "Guest" with view-only permissions.
 
