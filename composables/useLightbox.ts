@@ -3,6 +3,7 @@
  * Manages lightbox state for viewing media fullscreen
  */
 import { ref, computed, onMounted, onUnmounted, type Ref } from 'vue'
+import type { MediaOutput } from '~/shared/schemas'
 
 export interface LightboxItem {
   id: string

@@ -76,6 +76,17 @@ export const mediaRepository = {
   },
 
   /**
+   * Find all media uploaded by a specific guest token
+   */
+  async findByGuestTokenId(guestTokenId: string): Promise<SerializedMedia[]> {
+    const items = await prisma.media.findMany({
+      where: { guestTokenId },
+      orderBy: { createdAt: 'desc' }
+    })
+    return serializeMediaArray(items)
+  },
+
+  /**
    * Count media items for an event
    */
   async countByEventId(eventId: string): Promise<number> {

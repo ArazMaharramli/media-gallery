@@ -3,29 +3,10 @@
  * Handles guest token CRUD operations (unified view/upload tokens)
  */
 import { ref } from 'vue'
+import type { GuestTokenOutput, CreateGuestTokenInput } from '~/shared/schemas'
 
-export interface GuestToken {
-  id: string
-  eventId: string
-  token: string
-  name: string | null
-  active: boolean
-  canView: boolean
-  canUpload: boolean
-  canDelete: boolean
-  mediaIds: string[]
-  expiresAt: string | null
-  createdAt: string
-}
-
-export interface CreateGuestTokenInput {
-  name?: string
-  canView?: boolean
-  canUpload?: boolean
-  canDelete?: boolean
-  mediaIds?: string[]
-  expiresAt?: string
-}
+export type GuestToken = GuestTokenOutput
+export type { CreateGuestTokenInput }
 
 export function useTokenManagement(eventId: string) {
   // Loading states

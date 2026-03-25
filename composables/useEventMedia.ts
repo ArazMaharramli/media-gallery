@@ -3,24 +3,9 @@
  * Manages media fetching with pagination and CRUD operations
  */
 import { ref, computed, onMounted, watch, type Ref } from 'vue'
+import type { MediaOutput } from '~/shared/schemas'
 
-export interface Media {
-  id: string
-  eventId: string
-  guestTokenId: string | null
-  filename: string
-  originalName: string
-  mimeType: string
-  size: number
-  storageKey: string
-  type: 'photo' | 'video'
-  uploadedBy: 'photographer' | 'guest'
-  thumbnail?: string | null
-  thumbnailFallback?: string | null
-  preview?: string | null
-  previewFallback?: string | null
-  createdAt: string
-}
+export type Media = MediaOutput
 
 export interface UseEventMediaOptions {
   itemsPerPage?: number
@@ -147,43 +132,6 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
   }
 
   /**
-   * Get media URL with optional variant
-   */
-  function getMediaUrl(item: Media, variant?: 'thumbnail' | 'preview'): string {
-    const baseUrl = `/api/uploads/${item.eventId}`
-
-    if (variant === 'thumbnail' && item.thumbnail) {
-      return `${baseUrl}/${item.thumbnail}`
-    }
-    if (variant === 'preview' && item.preview) {
-      return `${baseUrl}/${item.preview}`
-    }
-
-    return `${baseUrl}/${item.filename}`
-  }
-
-  /**
-   * Get thumbnail URL
-   */
-  function getThumbnailUrl(item: Media): string {
-    return getMediaUrl(item, 'thumbnail')
-  }
-
-  /**
-   * Get preview URL
-   */
-  function getPreviewUrl(item: Media): string {
-    return getMediaUrl(item, 'preview')
-  }
-
-  /**
-   * Get download URL (original file)
-   */
-  function getDownloadUrl(item: Media): string {
-    return getMediaUrl(item)
-  }
-
-  /**
    * Set up intersection observer for infinite scroll
    */
   function setupInfiniteScroll(triggerElement: Ref<HTMLElement | null>) {
@@ -228,12 +176,6 @@ export function useEventMedia(eventId: string, options: UseEventMediaOptions = {
     refresh,
     deleteMedia,
     deleteMediaBatch,
-
-    // URL helpers
-    getMediaUrl,
-    getThumbnailUrl,
-    getPreviewUrl,
-    getDownloadUrl,
 
     // Utils
     setupInfiniteScroll

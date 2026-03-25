@@ -110,9 +110,8 @@ class LocalStorageService implements IStorageService {
     return join(this.uploadDir, eventId, filename)
   }
 
-  getServeUrl(eventId: string, filename: string, variant?: string): string {
-    const base = `/api/uploads/${eventId}/${filename}`
-    return variant ? `${base}?variant=${variant}` : base
+  getFileUrl(eventId: string, filename: string): string {
+    return `/api/uploads/${eventId}/${filename}`
   }
 }
 

@@ -1,4 +1,6 @@
-import { db } from '~/server/utils/db'
+import { guestTokensRepository } from '~/server/features/tokens'
+import { mediaRepository } from '~/server/features/media'
+import { resolveMediaUrlsArray } from '~/server/shared/utils'
 import { throwNotFoundError } from '~/server/utils/errors'
 import { successResponse } from '~/server/utils/response'
 
@@ -10,23 +12,19 @@ export default defineEventHandler(async (event) => {
     throwNotFoundError('Guest access')
   }
 
-  // Pagination parameters
   const page = Math.max(1, parseInt(query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 20))
   const skip = (page - 1) * limit
 
-  // Find the guest token with event info
-  const guestToken = await db.guestTokens.findByTokenWithEvent(token)
+  const guestToken = await guestTokensRepository.findByTokenWithEvent(token)
   if (!guestToken || !guestToken.active) {
     throwNotFoundError('Guest access')
   }
 
-  // Check if token has expired
   if (guestToken.expiresAt && new Date() > guestToken.expiresAt) {
     throwNotFoundError('Guest access')
   }
 
-  // Build response based on permissions
   const response: {
     event: {
       id: string
@@ -66,34 +64,31 @@ export default defineEventHandler(async (event) => {
     tokenName: guestToken.name
   }
 
-  // Always fetch own uploads (media uploaded by this guest token) - not paginated
-  const ownUploads = await db.media.findByGuestTokenId(guestToken.id)
+  // Always fetch own uploads (not paginated)
+  const ownUploads = await mediaRepository.findByGuestTokenId(guestToken.id)
   if (ownUploads.length > 0) {
-    response.ownUploads = ownUploads
+    response.ownUploads = resolveMediaUrlsArray(ownUploads)
   }
 
-  // Include shared media if canView is enabled (with pagination)
+  // Include shared media if canView (with pagination)
   if (guestToken.canView) {
     let media: any[]
     let total: number
 
-    // Get media based on mediaIds filter
     if (guestToken.mediaIds && guestToken.mediaIds.length > 0) {
-      // Selective sharing - only return specified media (paginated)
-      const allSelectedMedia = await db.media.findByIds(guestToken.mediaIds)
+      const allSelectedMedia = await mediaRepository.findByIds(guestToken.mediaIds)
       total = allSelectedMedia.length
       media = allSelectedMedia.slice(skip, skip + limit)
     } else {
-      // All media for the event (paginated)
       const [items, count] = await Promise.all([
-        db.media.findByEventId(guestToken.eventId, { skip, take: limit }),
-        db.media.countByEventId(guestToken.eventId)
+        mediaRepository.findByEventId(guestToken.eventId, { skip, take: limit }),
+        mediaRepository.countByEventId(guestToken.eventId)
       ])
       media = items
       total = count
     }
 
-    response.media = media
+    response.media = resolveMediaUrlsArray(media)
 
     const totalPages = Math.ceil(total / limit)
     response.pagination = {

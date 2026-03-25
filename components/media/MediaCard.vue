@@ -102,6 +102,7 @@
           </svg>
         </span>
         <button
+          v-if="showDelete"
           @click.stop="$emit('delete')"
           class="p-2 bg-white rounded-full shadow-lg hover:bg-red-50"
           title="Delete"
@@ -116,26 +117,20 @@
 </template>
 
 <script setup lang="ts">
-interface Media {
-  id: string
-  eventId: string
-  guestTokenId: string | null
-  filename: string
-  originalName: string
-  type: 'photo' | 'video'
-  thumbnail?: string | null
-}
+import type { MediaOutput } from '~/shared/schemas'
 
 interface Props {
-  media: Media
+  media: MediaOutput
   selectionMode?: boolean
   isSelected?: boolean
   uploaderName?: string | null
+  showDelete?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   selectionMode: false,
-  isSelected: false
+  isSelected: false,
+  showDelete: true
 })
 
 const emit = defineEmits<{
@@ -155,18 +150,9 @@ const showPlaceholder = computed(() => {
   return false
 })
 
-const thumbnailUrl = computed(() => {
-  const baseUrl = `/api/uploads/${props.media.eventId}`
-  if (props.media.thumbnail) {
-    return `${baseUrl}/${props.media.thumbnail}`
-  }
-  // For images, fall back to original file
-  if (props.media.type === 'photo') {
-    return `${baseUrl}/${props.media.filename}`
-  }
-  // For videos without thumbnail, return empty (placeholder will show)
-  return ''
-})
+const thumbnailUrl = computed(() =>
+  props.media.thumbnail || props.media.thumbnailFallback || (props.media.type === 'photo' ? props.media.filename : '')
+)
 
 function handleClick() {
   if (props.selectionMode) {

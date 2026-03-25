@@ -70,7 +70,8 @@ export interface IStorageService {
   getFilePath(eventId: string, filename: string): string
 
   /**
-   * Get the URL path for serving a file via API
+   * Get the public URL for a stored file.
+   * When switching to S3/MinIO/CDN, only this method needs to change.
    */
-  getServeUrl(eventId: string, filename: string, variant?: string): string
+  getFileUrl(eventId: string, filename: string): string
 }

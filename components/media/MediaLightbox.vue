@@ -54,15 +54,33 @@
             class="max-w-full max-h-full object-contain"
           />
 
-          <!-- Video -->
+          <!-- Video with next-gen format support -->
           <video
             v-else
             ref="videoPlayerRef"
-            :src="originalUrl"
-            :poster="previewUrl"
+            :key="currentMedia.id"
+            :poster="thumbnailUrl"
             controls
+            playsinline
             class="max-w-full max-h-full"
           >
+            <!-- WebM preview (next-gen, preferred) -->
+            <source
+              v-if="currentMedia.preview"
+              :src="currentMedia.preview"
+              type="video/webm"
+            />
+            <!-- MP4 preview (fallback) -->
+            <source
+              v-if="currentMedia.previewFallback"
+              :src="currentMedia.previewFallback"
+              type="video/mp4"
+            />
+            <!-- Original file as final fallback -->
+            <source
+              :src="originalUrl"
+              :type="currentMedia.mimeType"
+            />
             Your browser does not support the video tag.
           </video>
         </div>
@@ -94,19 +112,11 @@
 </template>
 
 <script setup lang="ts">
-interface Media {
-  id: string
-  eventId: string
-  filename: string
-  originalName: string
-  type: 'photo' | 'video'
-  preview?: string | null
-  thumbnail?: string | null
-}
+import type { MediaOutput } from '~/shared/schemas'
 
 interface Props {
   isOpen: boolean
-  currentMedia: Media | null
+  currentMedia: MediaOutput | null
   currentIndex: number
   totalCount: number
   hasPrev: boolean
@@ -125,16 +135,17 @@ const videoPlayerRef = ref<HTMLVideoElement | null>(null)
 
 const previewUrl = computed(() => {
   if (!props.currentMedia) return ''
-  const baseUrl = `/api/uploads/${props.currentMedia.eventId}`
-  if (props.currentMedia.preview) {
-    return `${baseUrl}/${props.currentMedia.preview}`
-  }
-  return `${baseUrl}/${props.currentMedia.filename}`
+  return props.currentMedia.preview || props.currentMedia.previewFallback || props.currentMedia.filename
+})
+
+const thumbnailUrl = computed(() => {
+  if (!props.currentMedia) return ''
+  return props.currentMedia.thumbnail || props.currentMedia.thumbnailFallback || ''
 })
 
 const originalUrl = computed(() => {
   if (!props.currentMedia) return ''
-  return `/api/uploads/${props.currentMedia.eventId}/${props.currentMedia.filename}`
+  return props.currentMedia.filename
 })
 
 const downloadUrl = computed(() => originalUrl.value)

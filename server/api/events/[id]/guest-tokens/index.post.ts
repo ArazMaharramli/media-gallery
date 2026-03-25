@@ -1,24 +1,12 @@
-import { db } from '~/server/utils/db'
-import { throwNotFoundError, throwValidationError } from '~/server/utils/errors'
+import { requireEvent } from '~/server/shared/middleware'
+import { guestTokensRepository } from '~/server/features/tokens'
+import { throwValidationError } from '~/server/utils/errors'
 import { createdResponse } from '~/server/utils/response'
 
 export default defineEventHandler(async (event) => {
-  const eventId = getRouterParam(event, 'id')
-
-  if (!eventId) {
-    throwNotFoundError('Event')
-  }
-
-  // Verify event exists
-  const eventData = await db.events.findById(eventId)
-  if (!eventData) {
-    throwNotFoundError('Event', eventId)
-  }
-
-  // Parse request body
+  const eventData = await requireEvent(event)
   const body = await readBody(event).catch(() => ({}))
 
-  // Validate at least one permission is enabled
   const canView = body?.canView ?? true
   const canUpload = body?.canUpload ?? false
   const canDelete = body?.canDelete ?? false
@@ -27,9 +15,8 @@ export default defineEventHandler(async (event) => {
     throwValidationError('At least one permission (canView or canUpload) must be enabled')
   }
 
-  // Create guest token
-  const guestToken = await db.guestTokens.create({
-    eventId,
+  const guestToken = await guestTokensRepository.create({
+    eventId: eventData.id,
     name: body?.name,
     canView,
     canUpload,

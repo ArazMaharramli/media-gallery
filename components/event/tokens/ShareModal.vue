@@ -141,12 +141,26 @@ async function generateQrCode() {
   }
 }
 
-function handleCopy() {
-  navigator.clipboard.writeText(props.shareLink)
-  copied.value = true
-  setTimeout(() => {
-    copied.value = false
-  }, 2000)
+async function handleCopy() {
+  try {
+    await navigator.clipboard.writeText(props.shareLink)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  } catch {
+    // Fallback for browsers without clipboard API
+    const textArea = document.createElement('textarea')
+    textArea.value = props.shareLink
+    document.body.appendChild(textArea)
+    textArea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textArea)
+    copied.value = true
+    setTimeout(() => {
+      copied.value = false
+    }, 2000)
+  }
 }
 
 function handleDownloadQr() {

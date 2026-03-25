@@ -196,16 +196,11 @@
 </template>
 
 <script setup lang="ts">
-import type { Media } from '~/composables/useEventMedia'
-
-interface GuestToken {
-  id: string
-  name: string | null
-}
+import type { MediaOutput, GuestTokenOutput } from '~/shared/schemas'
 
 interface Props {
-  media: Media[]
-  guestTokens: GuestToken[]
+  media: MediaOutput[]
+  guestTokens: Pick<GuestTokenOutput, 'id' | 'name'>[]
   viewMode: 'grid' | 'list'
   selectionMode: boolean
   selectedIds: Set<string>
@@ -224,7 +219,7 @@ const emit = defineEmits<{
   deselectAll: []
   toggleSelection: [id: string]
   openLightbox: [index: number]
-  confirmDelete: [media: Media]
+  confirmDelete: [media: MediaOutput]
   deleteSelected: []
   loadMore: []
 }>()
@@ -243,21 +238,12 @@ function getUploaderName(tokenId: string | null): string | null {
   return token?.name || null
 }
 
-function getThumbnailUrl(item: Media): string {
-  const baseUrl = `/api/uploads/${item.eventId}`
-  if (item.thumbnail) {
-    return `${baseUrl}/${item.thumbnail}`
-  }
-  // For images, fall back to original file
-  if (item.type === 'photo') {
-    return `${baseUrl}/${item.filename}`
-  }
-  // For videos without thumbnail, return empty (placeholder will show)
-  return ''
+function getThumbnailUrl(item: MediaOutput): string {
+  return item.thumbnail || item.thumbnailFallback || (item.type === 'photo' ? item.filename : '')
 }
 
-function showThumbnailPlaceholder(item: Media): boolean {
-  // Videos without thumbnails need a placeholder
+function showThumbnailPlaceholder(item: MediaOutput): boolean {
+  // Videos without thumbnails need a placeholder (thumbnails are generated async)
   return item.type === 'video' && !item.thumbnail
 }
 
@@ -269,19 +255,18 @@ function handleCardClick(id: string, index: number) {
   }
 }
 
-// Set up intersection observer for infinite scroll
-onMounted(() => {
-  setupIntersectionObserver()
-})
-
-watch(loadMoreTrigger, () => {
-  setupIntersectionObserver()
-})
+// Intersection observer for infinite scroll
+let observer: IntersectionObserver | null = null
 
 function setupIntersectionObserver() {
   if (!loadMoreTrigger.value) return
 
-  const observer = new IntersectionObserver(
+  // Disconnect existing observer to prevent memory leaks
+  if (observer) {
+    observer.disconnect()
+  }
+
+  observer = new IntersectionObserver(
     (entries) => {
       if (entries[0].isIntersecting && props.hasMore && !props.isLoadingMore) {
         emit('loadMore')
@@ -292,4 +277,19 @@ function setupIntersectionObserver() {
 
   observer.observe(loadMoreTrigger.value)
 }
+
+onMounted(() => {
+  setupIntersectionObserver()
+})
+
+onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
+})
+
+watch(loadMoreTrigger, () => {
+  setupIntersectionObserver()
+})
 </script>

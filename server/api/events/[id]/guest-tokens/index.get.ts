@@ -1,22 +1,9 @@
-import { db } from '~/server/utils/db'
-import { throwNotFoundError } from '~/server/utils/errors'
+import { requireEvent } from '~/server/shared/middleware'
+import { guestTokensRepository } from '~/server/features/tokens'
 import { successResponse } from '~/server/utils/response'
 
 export default defineEventHandler(async (event) => {
-  const eventId = getRouterParam(event, 'id')
-
-  if (!eventId) {
-    throwNotFoundError('Event')
-  }
-
-  // Verify event exists
-  const eventData = await db.events.findById(eventId)
-  if (!eventData) {
-    throwNotFoundError('Event', eventId)
-  }
-
-  // Get guest tokens for this event
-  const guestTokens = await db.guestTokens.findByEventId(eventId)
-
+  const eventData = await requireEvent(event)
+  const guestTokens = await guestTokensRepository.findByEventId(eventData.id)
   return successResponse(event, guestTokens)
 })

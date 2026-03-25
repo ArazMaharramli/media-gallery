@@ -3,6 +3,7 @@
  * Manages upload queue and file upload operations
  */
 import { ref, computed } from 'vue'
+import { formatFileSize } from '~/utils/formatters'
 
 export interface UploadQueueItem {
   id: string
@@ -13,7 +14,7 @@ export interface UploadQueueItem {
   abortController?: AbortController
 }
 
-export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
+export function useMediaUpload(uploadUrl: string, onUploadComplete?: () => void) {
   const uploadQueue = ref<UploadQueueItem[]>([])
   const isProcessingQueue = ref(false)
   const isDragging = ref(false)
@@ -77,8 +78,14 @@ export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
 
     // Create abort controller
     const abortController = new AbortController()
-    uploadQueue.value[index] = {
-      ...uploadQueue.value[index],
+    const itemId = item.id
+
+    // Update status to uploading
+    const currentIndex = uploadQueue.value.findIndex(i => i.id === itemId)
+    if (currentIndex === -1) return
+
+    uploadQueue.value[currentIndex] = {
+      ...uploadQueue.value[currentIndex],
       status: 'uploading',
       progress: 0,
       abortController
@@ -95,12 +102,9 @@ export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const progress = Math.round((e.loaded / e.total) * 100)
-            const idx = uploadQueue.value.findIndex(i => i.id === item.id)
+            const idx = uploadQueue.value.findIndex(i => i.id === itemId)
             if (idx !== -1) {
-              uploadQueue.value[idx] = {
-                ...uploadQueue.value[idx],
-                progress
-              }
+              uploadQueue.value[idx].progress = progress
             }
           }
         }
@@ -126,15 +130,15 @@ export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
           xhr.abort()
         })
 
-        xhr.open('POST', `/api/events/${eventId}/upload`)
+        xhr.open('POST', uploadUrl)
         xhr.send(formData)
       })
 
       // Mark as completed
-      const idx = uploadQueue.value.findIndex(i => i.id === item.id)
-      if (idx !== -1) {
-        uploadQueue.value[idx] = {
-          ...uploadQueue.value[idx],
+      const completedIdx = uploadQueue.value.findIndex(i => i.id === itemId)
+      if (completedIdx !== -1) {
+        uploadQueue.value[completedIdx] = {
+          ...uploadQueue.value[completedIdx],
           status: 'completed',
           progress: 100
         }
@@ -144,10 +148,10 @@ export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
       onUploadComplete?.()
 
     } catch (err: any) {
-      const idx = uploadQueue.value.findIndex(i => i.id === item.id)
-      if (idx !== -1) {
-        uploadQueue.value[idx] = {
-          ...uploadQueue.value[idx],
+      const errorIdx = uploadQueue.value.findIndex(i => i.id === itemId)
+      if (errorIdx !== -1) {
+        uploadQueue.value[errorIdx] = {
+          ...uploadQueue.value[errorIdx],
           status: 'error',
           error: err.message || 'Upload failed'
         }
@@ -225,15 +229,6 @@ export function useMediaUpload(eventId: string, onUploadComplete?: () => void) {
     if (files.length > 0) {
       addFiles(files)
     }
-  }
-
-  /**
-   * Format file size for display
-   */
-  function formatFileSize(bytes: number): string {
-    if (bytes < 1024) return `${bytes} B`
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
   }
 
   return {

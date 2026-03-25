@@ -1,13 +1,16 @@
 <template>
-  <div class="p-6">
+  <div class="h-full flex flex-col">
     <!-- Drop Zone -->
     <div
       @dragover.prevent="isDragging = true"
       @dragleave.prevent="isDragging = false"
       @drop.prevent="handleDrop"
       @click="fileInputRef?.click()"
-      class="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer"
-      :class="isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'"
+      class="border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer flex flex-col items-center justify-center"
+      :class="[
+        isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400',
+        uploadQueue.length === 0 ? 'flex-1 min-h-[200px]' : 'min-h-[140px]'
+      ]"
     >
       <input
         ref="fileInputRef"
@@ -136,6 +139,8 @@
 </template>
 
 <script setup lang="ts">
+import { formatFileSize } from '~/utils/formatters'
+
 interface UploadQueueItem {
   id: string
   file: File
@@ -169,12 +174,6 @@ const hasCompletedOrError = computed(() =>
 
 function isVideo(file: File): boolean {
   return file.type.startsWith('video')
-}
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
 function handleDrop(e: DragEvent) {

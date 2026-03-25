@@ -2,4 +2,4 @@
  * Shared utilities exports
  */
 export { generateToken, isValidToken } from './token'
-export { serializeMedia, serializeMediaArray } from './serialize'
+export { serializeMedia, serializeMediaArray, resolveMediaUrls, resolveMediaUrlsArray } from './serialize'

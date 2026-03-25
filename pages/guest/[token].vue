@@ -100,79 +100,14 @@
 
         <!-- Grid View -->
         <div v-else-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          <div
+          <MediaCard
             v-for="(item, index) in allMedia"
             :key="item.id"
+            :media="item"
+            :show-delete="canDeleteItem(item)"
             @click="openLightbox(index)"
-            class="group relative aspect-square bg-gray-200 rounded-lg overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 hover:ring-offset-2 transition-all"
-          >
-            <!-- Thumbnail Image -->
-            <img
-              v-if="!shouldShowPlaceholder(item) && getThumbnailUrl(item)"
-              :src="getThumbnailUrl(item)"
-              :alt="item.originalName"
-              class="absolute inset-0 w-full h-full object-cover"
-              @error="handleThumbnailError(item)"
-            />
-
-            <!-- Placeholder for videos without thumbnails or failed loads -->
-            <div
-              v-if="shouldShowPlaceholder(item)"
-              class="absolute inset-0 flex items-center justify-center bg-gray-200"
-            >
-              <svg v-if="item.type === 'video'" class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-              </svg>
-              <svg v-else class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-              </svg>
-            </div>
-
-            <!-- Video play overlay -->
-            <div
-              v-if="item.type === 'video'"
-              class="absolute inset-0 flex items-center justify-center pointer-events-none"
-            >
-              <div class="w-12 h-12 rounded-full bg-black/50 flex items-center justify-center">
-                <svg class="w-6 h-6 text-white ml-1" fill="currentColor" viewBox="0 0 20 20">
-                  <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                </svg>
-              </div>
-            </div>
-
-            <div
-              v-if="item.type === 'video'"
-              class="absolute bottom-2 right-2 bg-black bg-opacity-60 text-white text-xs px-1.5 py-0.5 rounded flex items-center gap-1"
-            >
-              <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-              </svg>
-              Video
-            </div>
-            <div class="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">
-              <span class="p-2 bg-white rounded-full shadow-lg">
-                <svg class="w-5 h-5 text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
-              </span>
-            </div>
-            <button
-              v-if="canDeleteItem(item)"
-              @click.stop="deleteMedia(item.id)"
-              :disabled="deletingMediaId === item.id"
-              class="absolute top-2 right-2 p-1.5 bg-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-50 disabled:opacity-50"
-              title="Delete"
-            >
-              <svg v-if="deletingMediaId !== item.id" class="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <svg v-else class="w-4 h-4 text-red-600 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </button>
-          </div>
+            @delete="confirmDeleteMedia(item)"
+          />
         </div>
 
         <!-- List View -->
@@ -185,11 +120,10 @@
           >
             <div class="w-16 h-16 bg-gray-200 rounded-lg flex-shrink-0 overflow-hidden">
               <img
-                v-if="!shouldShowPlaceholder(item) && getThumbnailUrl(item)"
-                :src="getThumbnailUrl(item)"
+                v-if="item.thumbnail"
+                :src="item.thumbnail || item.thumbnailFallback || item.filename"
                 :alt="item.originalName"
                 class="w-full h-full object-cover"
-                @error="handleThumbnailError(item)"
               />
               <div v-else class="w-full h-full flex items-center justify-center">
                 <svg v-if="item.type === 'video'" class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -203,15 +137,13 @@
             <div class="flex-1 min-w-0">
               <p class="text-sm font-medium text-gray-900 truncate">{{ item.originalName }}</p>
               <div class="flex items-center gap-3 mt-1 text-xs text-gray-500">
-                <span class="inline-flex items-center gap-1">
-                  {{ item.type === 'video' ? 'Video' : 'Photo' }}
-                </span>
+                <span>{{ item.type === 'video' ? 'Video' : 'Photo' }}</span>
                 <span>{{ formatFileSize(item.size) }}</span>
               </div>
             </div>
             <div class="flex items-center gap-2">
               <a
-                :href="getMediaUrl(item)"
+                :href="item.filename"
                 :download="item.originalName"
                 @click.stop
                 class="p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-colors"
@@ -223,7 +155,7 @@
               </a>
               <button
                 v-if="canDeleteItem(item)"
-                @click.stop="deleteMedia(item.id)"
+                @click.stop="confirmDeleteMedia(item)"
                 :disabled="deletingMediaId === item.id"
                 class="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50"
                 title="Delete"
@@ -231,7 +163,7 @@
                 <svg v-if="deletingMediaId !== item.id" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <svg v-else class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg v-else class="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                   <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -258,140 +190,15 @@
       <!-- Upload Tab Content -->
       <div v-if="permissions?.canUpload && activeTab === 'upload'" class="p-6">
         <div class="flex flex-col md:flex-row md:items-stretch gap-6">
-          <!-- Upload Section -->
-          <div class="flex-1 flex flex-col">
-            <!-- Drop Zone -->
-            <div
-              @dragover.prevent="isDragging = true"
-              @dragleave.prevent="isDragging = false"
-              @drop.prevent="handleDrop"
-              @click="openFileDialog"
-              class="flex-1 border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer flex flex-col items-center justify-center min-h-[240px]"
-              :class="isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-gray-300 hover:border-indigo-400'"
-            >
-              <input
-                ref="fileInputRef"
-                type="file"
-                multiple
-                accept="image/jpeg,image/png,image/gif,image/webp,video/mp4,video/quicktime,video/webm"
-                class="hidden"
-                @change="handleFileSelect"
-              />
-              <svg
-                class="mx-auto h-12 w-12"
-                :class="isDragging ? 'text-indigo-500' : 'text-gray-400'"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-              </svg>
-              <p class="mt-2 text-sm text-gray-600">
-                <span class="font-medium text-indigo-600">Click to upload</span> or drag and drop
-              </p>
-              <p class="mt-1 text-xs text-gray-500">
-                JPG, PNG, GIF, WEBP, MP4, MOV, WEBM up to 500MB
-              </p>
-            </div>
-
-            <!-- Upload Queue -->
-            <div v-if="uploadQueue.length > 0" class="mt-4 space-y-2">
-              <div class="flex items-center justify-between text-sm text-gray-600">
-                <span>Upload Queue ({{ uploadQueue.length }} files)</span>
-                <button
-                  v-if="hasCompletedOrError"
-                  @click="clearCompleted"
-                  class="text-xs text-gray-500 hover:text-gray-700"
-                >
-                  Clear completed
-                </button>
-              </div>
-
-              <div
-                v-for="item in uploadQueue"
-                :key="item.id"
-                class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
-              >
-                <!-- File Icon -->
-                <div class="flex-shrink-0">
-                  <svg v-if="item.isVideo" class="w-8 h-8 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  <svg v-else class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-
-                <!-- File Info -->
-                <div class="flex-1 min-w-0">
-                  <p class="text-sm font-medium text-gray-900 truncate">{{ item.name }}</p>
-                  <p class="text-xs text-gray-500">{{ formatFileSize(item.size) }}</p>
-
-                  <!-- Progress Bar -->
-                  <div v-if="item.status === 'uploading'" class="mt-1">
-                    <div class="flex items-center gap-2">
-                      <div class="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          class="h-full bg-indigo-600 transition-all duration-300"
-                          :style="{ width: `${item.progress}%` }"
-                        ></div>
-                      </div>
-                      <span class="text-xs text-gray-500 w-10 text-right">{{ item.progress }}%</span>
-                    </div>
-                  </div>
-
-                  <!-- Error Message -->
-                  <p v-if="item.status === 'error'" class="text-xs text-red-600 mt-1">
-                    {{ item.error }}
-                  </p>
-                </div>
-
-                <!-- Status / Actions -->
-                <div class="flex-shrink-0">
-                  <!-- Pending -->
-                  <span v-if="item.status === 'pending'" class="text-xs text-gray-400">Waiting...</span>
-
-                  <!-- Uploading -->
-                  <button
-                    v-else-if="item.status === 'uploading'"
-                    @click="cancelUpload(item.id)"
-                    class="p-1 text-gray-400 hover:text-red-500"
-                    title="Cancel"
-                  >
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-
-                  <!-- Completed -->
-                  <svg v-else-if="item.status === 'completed'" class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-                  </svg>
-
-                  <!-- Error -->
-                  <div v-else-if="item.status === 'error'" class="flex items-center gap-1">
-                    <button
-                      @click="retryUpload(item.id)"
-                      class="p-1 text-gray-400 hover:text-indigo-500"
-                      title="Retry"
-                    >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                      </svg>
-                    </button>
-                    <button
-                      @click="removeFromQueue(item.id)"
-                      class="p-1 text-gray-400 hover:text-red-500"
-                      title="Remove"
-                    >
-                      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+          <div class="flex-1 min-h-[240px]">
+            <EventUploader
+              :upload-queue="uploadQueue"
+              @add-files="addFilesToQueue"
+              @cancel="cancelUpload"
+              @retry="retryUpload"
+              @remove="removeFromQueue"
+              @clear-completed="clearCompleted"
+            />
           </div>
 
           <!-- Divider - hidden on mobile -->
@@ -426,144 +233,44 @@
       </div>
     </div>
 
-    <!-- Photo Lightbox -->
-    <div
-      v-if="lightboxOpen && currentMedia?.type === 'photo'"
-      class="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center"
-      @click.self="closeLightbox"
-    >
-      <button
-        @click="closeLightbox"
-        class="absolute top-4 right-4 p-2 text-white hover:text-gray-300 z-10"
-      >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <a
-        :href="getMediaUrl(currentMedia)"
-        :download="currentMedia.originalName"
-        class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
-        title="Download original"
-      >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-      </a>
-      <button
-        v-if="currentMedia && canDeleteItem(currentMedia)"
-        @click="deleteMedia(currentMedia.id)"
-        :disabled="deletingMediaId === currentMedia.id"
-        class="absolute top-4 right-28 p-2 text-white hover:text-red-400 z-10 disabled:opacity-50"
-        title="Delete"
-      >
-        <svg v-if="deletingMediaId !== currentMedia.id" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        <svg v-else class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </button>
-      <button
-        v-if="hasPrevMedia"
-        @click="prevMedia"
-        class="absolute left-4 p-2 text-white hover:text-gray-300 z-10"
-      >
-        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
-      </button>
-      <button
-        v-if="hasNextMedia"
-        @click="nextMedia"
-        class="absolute right-4 p-2 text-white hover:text-gray-300 z-10"
-      >
-        <svg class="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-        </svg>
-      </button>
-      <img
-        :src="getPreviewUrl(currentMedia)"
-        :alt="currentMedia.originalName"
-        class="max-h-[90vh] max-w-[90vw] object-contain"
-      />
-      <div class="absolute bottom-4 left-1/2 -translate-x-1/2 text-white text-sm">
-        {{ currentMediaIndex + 1 }} / {{ allMedia.length }}
-      </div>
-    </div>
+    <!-- Lightbox (replaces 116 lines of inline photo+video modals) -->
+    <MediaLightbox
+      :is-open="lightboxOpen"
+      :current-media="currentMedia"
+      :current-index="currentMediaIndex"
+      :total-count="allMedia.length"
+      :has-prev="hasPrevMedia"
+      :has-next="hasNextMedia"
+      @close="closeLightbox"
+      @prev="prevMedia"
+      @next="nextMedia"
+    />
 
-    <!-- Video Player Modal -->
-    <div
-      v-if="lightboxOpen && currentMedia?.type === 'video'"
-      class="fixed inset-0 z-50 bg-black bg-opacity-95 flex items-center justify-center"
-      @click.self="closeLightbox"
-    >
-      <button
-        @click="closeLightbox"
-        class="absolute top-4 right-4 p-2 text-white hover:text-gray-300 z-10"
-      >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      <a
-        :href="getMediaUrl(currentMedia)"
-        :download="currentMedia.originalName"
-        class="absolute top-4 right-16 p-2 text-white hover:text-gray-300 z-10"
-        title="Download original"
-      >
-        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-        </svg>
-      </a>
-      <button
-        v-if="currentMedia && canDeleteItem(currentMedia)"
-        @click="deleteMedia(currentMedia.id)"
-        :disabled="deletingMediaId === currentMedia.id"
-        class="absolute top-4 right-28 p-2 text-white hover:text-red-400 z-10 disabled:opacity-50"
-        title="Delete"
-      >
-        <svg v-if="deletingMediaId !== currentMedia.id" class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-        </svg>
-        <svg v-else class="w-8 h-8 animate-spin" fill="none" viewBox="0 0 24 24">
-          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-        </svg>
-      </button>
-      <video
-        ref="videoPlayerRef"
-        :src="getMediaUrl(currentMedia)"
-        :poster="getPreviewUrl(currentMedia) || undefined"
-        controls
-        autoplay
-        class="max-h-[90vh] max-w-[90vw]"
-      >
-        Your browser does not support the video tag.
-      </video>
-    </div>
+    <!-- Delete Confirmation Modal (replaces window.confirm) -->
+    <CommonConfirmModal
+      :is-open="showDeleteModal"
+      title="Delete Media"
+      :message="`Are you sure you want to delete ${mediaToDelete?.originalName}? This action cannot be undone.`"
+      confirm-text="Delete"
+      :is-loading="deletingMediaId !== null"
+      variant="danger"
+      @confirm="executeDelete"
+      @cancel="showDeleteModal = false; mediaToDelete = null"
+    />
+
+    <!-- Toast Notification (replaces alert()) -->
+    <CommonToast
+      :show="showToast"
+      :message="toastMessage"
+      @hide="showToast = false"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
+import type { MediaOutput } from '~/shared/schemas'
+import { formatFileSize } from '~/utils/formatters'
 import QRCodeVue from 'qrcode.vue'
-
-interface Media {
-  id: string
-  eventId: string
-  guestTokenId: string | null
-  filename: string
-  originalName: string
-  mimeType: string
-  size: number
-  type: 'photo' | 'video'
-  thumbnail?: string | null
-  thumbnailFallback?: string | null
-  preview?: string | null
-  previewFallback?: string | null
-  createdAt: string
-}
 
 interface GuestEvent {
   id: string
@@ -586,30 +293,17 @@ const viewMode = ref<'grid' | 'list'>('grid')
 const activeTab = ref<'gallery' | 'upload'>('gallery')
 const copied = ref(false)
 const deletingMediaId = ref<string | null>(null)
-const sharedMediaList = ref<Media[]>([])
-const ownUploadsList = ref<Media[]>([])
-const thumbnailErrors = ref<Set<string>>(new Set())
-const isDragging = ref(false)
-const fileInputRef = ref<HTMLInputElement | null>(null)
+const sharedMediaList = ref<MediaOutput[]>([])
+const ownUploadsList = ref<MediaOutput[]>([])
 
-// Upload queue state
-interface UploadQueueItem {
-  id: string
-  file: File
-  name: string
-  size: number
-  isVideo: boolean
-  status: 'pending' | 'uploading' | 'completed' | 'error'
-  progress: number
-  error?: string
-  xhr?: XMLHttpRequest
-}
-const uploadQueue = ref<UploadQueueItem[]>([])
-const isProcessingQueue = ref(false)
+// Delete modal state
+const showDeleteModal = ref(false)
+const mediaToDelete = ref<MediaOutput | null>(null)
 
-const hasCompletedOrError = computed(() =>
-  uploadQueue.value.some(f => f.status === 'completed' || f.status === 'error')
-)
+// Toast state
+const showToast = ref(false)
+const toastMessage = ref('')
+let toastTimeout: ReturnType<typeof setTimeout> | null = null
 
 // Pagination state
 const currentPage = ref(1)
@@ -618,15 +312,15 @@ const hasMoreMedia = ref(true)
 const isLoadingMore = ref(false)
 const loadMoreTrigger = ref<HTMLElement | null>(null)
 
-// Lightbox state
-const lightboxOpen = ref(false)
-const currentMediaIndex = ref(0)
-const videoPlayerRef = ref<HTMLVideoElement | null>(null)
+// Upload composable
+const {
+  uploadQueue, addFiles: addFilesToQueue, cancelUpload,
+  retryUpload, removeFromQueue, clearCompleted
+} = useMediaUpload(`/api/guest/${token}/upload`, onUploadComplete)
 
 // Fetch guest data
-const { data: response, error, refresh } = await useFetch(`/api/guest/${token}`)
+const { data: response, error } = await useFetch(`/api/guest/${token}`)
 
-// Handle 404
 if (error.value) {
   throw createError({
     statusCode: 404,
@@ -639,42 +333,42 @@ const permissions = computed<Permissions | null>(() => response.value?.data?.per
 const tokenName = computed(() => response.value?.data?.tokenName || null)
 const tokenId = computed(() => response.value?.data?.tokenId || null)
 
-// Shared media (from canView permission)
-const sharedMedia = computed<Media[]>(() =>
+// Media lists
+const sharedMedia = computed<MediaOutput[]>(() =>
   sharedMediaList.value.length > 0 ? sharedMediaList.value : (response.value?.data?.media || [])
 )
 
-// Own uploads (media uploaded by this guest)
-const ownUploads = computed<Media[]>(() =>
+const ownUploads = computed<MediaOutput[]>(() =>
   ownUploadsList.value.length > 0 ? ownUploadsList.value : (response.value?.data?.ownUploads || [])
 )
 
-// Filter out own uploads from shared media to avoid duplicates, then combine
-const allMedia = computed<Media[]>(() => {
+const allMedia = computed<MediaOutput[]>(() => {
   const ownIds = new Set(ownUploads.value.map(m => m.id))
   const filteredShared = sharedMedia.value.filter(m => !ownIds.has(m.id))
   return [...filteredShared, ...ownUploads.value]
 })
 
-// Should show gallery tab (has shared media OR has own uploads)
 const canShowGallery = computed(() =>
   permissions.value?.canView || ownUploads.value.length > 0
 )
 
+// Lightbox composable
+const {
+  isOpen: lightboxOpen, currentIndex: currentMediaIndex,
+  currentItem: currentMedia, hasPrev: hasPrevMedia, hasNext: hasNextMedia,
+  open: openLightbox, close: closeLightbox,
+  prev: prevMedia, next: nextMedia
+} = useLightbox(allMedia)
+
 // Sync media lists when response changes
 watch(() => response.value?.data?.media, (newMedia) => {
-  if (newMedia) {
-    sharedMediaList.value = [...newMedia]
-  }
+  if (newMedia) sharedMediaList.value = [...newMedia]
 }, { immediate: true })
 
 watch(() => response.value?.data?.ownUploads, (newUploads) => {
-  if (newUploads) {
-    ownUploadsList.value = [...newUploads]
-  }
+  if (newUploads) ownUploadsList.value = [...newUploads]
 }, { immediate: true })
 
-// Initialize pagination from response
 watch(() => response.value?.data?.pagination, (pagination) => {
   if (pagination) {
     totalMediaCount.value = pagination.total
@@ -682,6 +376,52 @@ watch(() => response.value?.data?.pagination, (pagination) => {
     currentPage.value = pagination.page
   }
 }, { immediate: true })
+
+// Set initial tab based on permissions
+watchEffect(() => {
+  if (permissions.value) {
+    if (canShowGallery.value && !permissions.value.canUpload) {
+      activeTab.value = 'gallery'
+    } else if (permissions.value.canUpload && !canShowGallery.value) {
+      activeTab.value = 'upload'
+    }
+  }
+})
+
+// Format date
+const formattedDate = computed(() => {
+  if (!event.value?.date) return ''
+  return new Date(event.value.date).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+})
+
+const guestUrl = computed(() => {
+  if (import.meta.client) {
+    return `${window.location.origin}/guest/${token}`
+  }
+  return `/guest/${token}`
+})
+
+// Permission check
+function canDeleteItem(item: MediaOutput): boolean {
+  if (item.guestTokenId && item.guestTokenId === tokenId.value) return true
+  return permissions.value?.canDelete === true
+}
+
+// Upload complete handler — re-fetch own uploads
+async function onUploadComplete() {
+  try {
+    const freshData = await $fetch(`/api/guest/${token}`) as any
+    if (freshData?.data?.ownUploads) {
+      ownUploadsList.value = [...freshData.data.ownUploads]
+    }
+  } catch {
+    // Silently fail — media will appear on next load
+  }
+}
 
 // Load more media for infinite scroll
 async function loadMoreMedia() {
@@ -703,357 +443,62 @@ async function loadMoreMedia() {
       hasMoreMedia.value = moreResponse.data.pagination.hasMore
       currentPage.value = moreResponse.data.pagination.page
     }
-  } catch (err) {
-    console.error('Failed to load more media:', err)
+  } catch {
+    // Silently handle pagination errors
   } finally {
     isLoadingMore.value = false
   }
 }
 
-// Set initial tab based on permissions
-watchEffect(() => {
-  if (permissions.value) {
-    if (canShowGallery.value && !permissions.value.canUpload) {
-      activeTab.value = 'gallery'
-    } else if (permissions.value.canUpload && !canShowGallery.value) {
-      activeTab.value = 'upload'
-    }
-  }
-})
-
-// Lightbox computed
-const currentMedia = computed(() => allMedia.value[currentMediaIndex.value])
-const hasPrevMedia = computed(() => currentMediaIndex.value > 0)
-const hasNextMedia = computed(() => currentMediaIndex.value < allMedia.value.length - 1)
-
-// Format date
-const formattedDate = computed(() => {
-  if (!event.value?.date) return ''
-  return new Date(event.value.date).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
-  })
-})
-
-const guestUrl = computed(() => {
-  if (import.meta.client) {
-    return `${window.location.origin}/guest/${token}`
-  }
-  return `/guest/${token}`
-})
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+// Delete flow with modal
+function confirmDeleteMedia(item: MediaOutput) {
+  mediaToDelete.value = item
+  showDeleteModal.value = true
 }
 
-function getMediaUrl(item: Media): string {
-  return `/api/uploads/${item.eventId}/${item.filename}`
-}
-
-// Get thumbnail URL for grid view (optimized for performance)
-function getThumbnailUrl(item: Media): string {
-  const baseUrl = `/api/uploads/${item.eventId}`
-  // Use thumbnail (WebP) first, then fallback to original JPEG thumbnail
-  if (item.thumbnail) {
-    return `${baseUrl}/${item.thumbnail}`
-  }
-  if (item.thumbnailFallback) {
-    return `${baseUrl}/${item.thumbnailFallback}`
-  }
-  // For photos, fall back to original file
-  if (item.type === 'photo') {
-    return `${baseUrl}/${item.filename}`
-  }
-  // Videos without thumbnails return empty (show placeholder)
-  return ''
-}
-
-// Get preview URL for lightbox view (medium-sized optimized image)
-function getPreviewUrl(item: Media): string {
-  const baseUrl = `/api/uploads/${item.eventId}`
-  // Use preview (WebP) first, then fallback
-  if (item.preview) {
-    return `${baseUrl}/${item.preview}`
-  }
-  if (item.previewFallback) {
-    return `${baseUrl}/${item.previewFallback}`
-  }
-  // For videos, try thumbnail as fallback for poster (don't use video file as image)
-  if (item.type === 'video') {
-    if (item.thumbnail) {
-      return `${baseUrl}/${item.thumbnail}`
-    }
-    if (item.thumbnailFallback) {
-      return `${baseUrl}/${item.thumbnailFallback}`
-    }
-    // No preview available for video
-    return ''
-  }
-  // For photos, fall back to original
-  return `${baseUrl}/${item.filename}`
-}
-
-// Check if item should show placeholder (video without thumbnail or failed load)
-function shouldShowPlaceholder(item: Media): boolean {
-  if (thumbnailErrors.value.has(item.id)) return true
-  // Videos without thumbnails can't use original as img src
-  if (item.type === 'video' && !item.thumbnail && !item.thumbnailFallback) return true
-  return false
-}
-
-// Handle thumbnail load error
-function handleThumbnailError(item: Media) {
-  thumbnailErrors.value.add(item.id)
-}
-
-// Check if guest can delete a specific item
-// Guests can delete if: they have canDelete permission OR it's their own upload
-function canDeleteItem(item: Media): boolean {
-  // Own upload - always deletable
-  if (item.guestTokenId && item.guestTokenId === tokenId.value) {
-    return true
-  }
-  // Shared media - only if canDelete permission
-  return permissions.value?.canDelete === true
-}
-
-// Lightbox functions
-function openLightbox(index: number) {
-  currentMediaIndex.value = index
-  lightboxOpen.value = true
-  document.body.style.overflow = 'hidden'
-}
-
-function closeLightbox() {
-  lightboxOpen.value = false
-  document.body.style.overflow = ''
-  if (videoPlayerRef.value) {
-    videoPlayerRef.value.pause()
-  }
-}
-
-function prevMedia() {
-  if (hasPrevMedia.value) {
-    currentMediaIndex.value--
-  }
-}
-
-function nextMedia() {
-  if (hasNextMedia.value) {
-    currentMediaIndex.value++
-  }
-}
-
-// File upload functions
-const ALLOWED_TYPES = [
-  'image/jpeg', 'image/png', 'image/gif', 'image/webp',
-  'video/mp4', 'video/quicktime', 'video/webm'
-]
-const MAX_FILE_SIZE = 500 * 1024 * 1024
-
-function openFileDialog() {
-  fileInputRef.value?.click()
-}
-
-function handleFileSelect(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (input.files) {
-    addFilesToQueue(Array.from(input.files))
-    input.value = ''
-  }
-}
-
-function handleDrop(e: DragEvent) {
-  isDragging.value = false
-  const files = e.dataTransfer?.files
-  if (files) {
-    addFilesToQueue(Array.from(files))
-  }
-}
-
-function addFilesToQueue(files: File[]) {
-  for (const file of files) {
-    if (!ALLOWED_TYPES.includes(file.type)) continue
-    if (file.size > MAX_FILE_SIZE) continue
-
-    uploadQueue.value.push({
-      id: crypto.randomUUID(),
-      file,
-      name: file.name,
-      size: file.size,
-      isVideo: file.type.startsWith('video'),
-      status: 'pending',
-      progress: 0
-    })
-  }
-  processQueue()
-}
-
-async function processQueue() {
-  if (isProcessingQueue.value) return
-  const pendingItem = uploadQueue.value.find(item => item.status === 'pending')
-  if (!pendingItem) return
-
-  isProcessingQueue.value = true
-  await uploadFile(pendingItem)
-  isProcessingQueue.value = false
-  processQueue()
-}
-
-async function uploadFile(item: UploadQueueItem) {
-  item.status = 'uploading'
-  item.progress = 0
-
-  const formData = new FormData()
-  formData.append('file', item.file)
-
-  try {
-    const result = await new Promise<any>((resolve, reject) => {
-      const xhr = new XMLHttpRequest()
-      item.xhr = xhr
-
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          item.progress = Math.round((e.loaded / e.total) * 100)
-        }
-      })
-
-      xhr.addEventListener('load', () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          try {
-            resolve(JSON.parse(xhr.responseText))
-          } catch {
-            resolve({ data: null })
-          }
-        } else {
-          try {
-            const response = JSON.parse(xhr.responseText)
-            reject(new Error(response.error?.message || 'Upload failed'))
-          } catch {
-            reject(new Error('Upload failed'))
-          }
-        }
-      })
-
-      xhr.addEventListener('error', () => reject(new Error('Network error')))
-      xhr.addEventListener('abort', () => reject(new Error('Upload cancelled')))
-
-      xhr.open('POST', `/api/guest/${token}/upload`)
-      xhr.send(formData)
-    })
-
-    item.status = 'completed'
-    item.progress = 100
-
-    // Add the new upload to ownUploadsList
-    if (result?.data) {
-      ownUploadsList.value = [result.data, ...ownUploadsList.value]
-    }
-  } catch (err: any) {
-    if (err.message === 'Upload cancelled') {
-      removeFromQueue(item.id)
-    } else {
-      item.status = 'error'
-      item.error = err.message || 'Upload failed'
-    }
-  }
-}
-
-function cancelUpload(id: string) {
-  const item = uploadQueue.value.find(i => i.id === id)
-  if (item?.xhr) {
-    item.xhr.abort()
-  }
-}
-
-function retryUpload(id: string) {
-  const item = uploadQueue.value.find(i => i.id === id)
-  if (item) {
-    item.status = 'pending'
-    item.progress = 0
-    item.error = undefined
-    processQueue()
-  }
-}
-
-function removeFromQueue(id: string) {
-  const index = uploadQueue.value.findIndex(i => i.id === id)
-  if (index !== -1) {
-    uploadQueue.value.splice(index, 1)
-  }
-}
-
-function clearCompleted() {
-  uploadQueue.value = uploadQueue.value.filter(i => i.status !== 'completed')
-}
-
-async function copyLink() {
-  try {
-    await navigator.clipboard.writeText(guestUrl.value)
-    copied.value = true
-    setTimeout(() => {
-      copied.value = false
-    }, 2000)
-  } catch (err) {
-    console.error('Failed to copy:', err)
-  }
-}
-
-async function deleteMedia(mediaId: string) {
-  if (!confirm('Are you sure you want to delete this item? This cannot be undone.')) {
-    return
-  }
+async function executeDelete() {
+  if (!mediaToDelete.value) return
+  const mediaId = mediaToDelete.value.id
 
   deletingMediaId.value = mediaId
   try {
-    await $fetch(`/api/guest/${token}/media/${mediaId}`, {
-      method: 'DELETE'
-    })
-    // Remove from both lists
+    await $fetch(`/api/guest/${token}/media/${mediaId}`, { method: 'DELETE' })
     sharedMediaList.value = sharedMediaList.value.filter(m => m.id !== mediaId)
     ownUploadsList.value = ownUploadsList.value.filter(m => m.id !== mediaId)
-    // Close lightbox if we deleted the current item
     if (lightboxOpen.value && currentMedia.value?.id === mediaId) {
       closeLightbox()
     }
   } catch (err: any) {
-    alert(err.data?.error?.message || 'Failed to delete media')
+    showToastMessage(err.data?.error?.message || 'Failed to delete media')
   } finally {
     deletingMediaId.value = null
+    showDeleteModal.value = false
+    mediaToDelete.value = null
   }
 }
 
-// Keyboard navigation
-function handleKeydown(e: KeyboardEvent) {
-  if (!lightboxOpen.value) return
+// Toast helper
+function showToastMessage(message: string) {
+  toastMessage.value = message
+  showToast.value = true
+  if (toastTimeout) {
+    clearTimeout(toastTimeout)
+  }
+  toastTimeout = setTimeout(() => { showToast.value = false }, 3000)
+}
 
-  switch (e.key) {
-    case 'Escape':
-      closeLightbox()
-      break
-    case 'ArrowLeft':
-      prevMedia()
-      break
-    case 'ArrowRight':
-      nextMedia()
-      break
+// Copy link
+async function copyLink() {
+  try {
+    await navigator.clipboard.writeText(guestUrl.value)
+    copied.value = true
+    setTimeout(() => { copied.value = false }, 2000)
+  } catch {
+    // Clipboard API not available
   }
 }
 
-onMounted(() => {
-  window.addEventListener('keydown', handleKeydown)
-  setupIntersectionObserver()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeydown)
-  document.body.style.overflow = ''
-})
-
-// Set up intersection observer for infinite scroll
+// Intersection observer for infinite scroll
 let observer: IntersectionObserver | null = null
 
 function setupIntersectionObserver() {
@@ -1071,6 +516,15 @@ function setupIntersectionObserver() {
 
   observer.observe(loadMoreTrigger.value)
 }
+
+onMounted(() => {
+  setupIntersectionObserver()
+})
+
+onUnmounted(() => {
+  if (observer) observer.disconnect()
+  if (toastTimeout) clearTimeout(toastTimeout)
+})
 
 watch(loadMoreTrigger, () => {
   setupIntersectionObserver()
