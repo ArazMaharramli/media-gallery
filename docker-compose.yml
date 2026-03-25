@@ -27,6 +27,9 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/media_gallery
       NUXT_UPLOAD_DIR: /app/uploads
+      NUXT_PUBLIC_UPLOAD_CHUNK_SIZE: 2097152
+      NUXT_UPLOAD_STALE_THRESHOLD_HOURS: 24
+      NUXT_PUBLIC_UPLOAD_MAX_CHUNKED_SIZE: 10737418240
     volumes:
       - uploads_data:/app/uploads
     depends_on:
