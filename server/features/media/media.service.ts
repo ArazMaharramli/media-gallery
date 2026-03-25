@@ -3,17 +3,28 @@
  * Orchestrates media upload, processing, and deletion operations
  */
 import { join } from 'path'
+import { readFile, stat } from 'fs/promises'
 import { eventsRepository } from '~/server/features/events'
 import { mediaRepository, type SerializedMedia } from './media.repository'
 import { getProcessor } from './processors'
 import { storageService } from '~/server/shared/storage'
-import { getMediaTypeFromMime, isAllowedMediaType, MAX_FILE_SIZE } from '~/shared/schemas'
+import { getMediaTypeFromMime, isAllowedMediaType } from '~/shared/schemas'
 
 export interface UploadMediaInput {
   eventId: string
   buffer: Buffer
   mimeType: string
   originalName: string
+  guestTokenId?: string | null
+  uploadedBy: 'photographer' | 'guest'
+}
+
+export interface UploadMediaFromFileInput {
+  eventId: string
+  filePath: string
+  mimeType: string
+  originalName: string
+  size: number
   guestTokenId?: string | null
   uploadedBy: 'photographer' | 'guest'
 }
@@ -38,6 +49,8 @@ export const mediaService = {
    */
   async uploadMedia(input: UploadMediaInput): Promise<UploadMediaResult> {
     const { eventId, buffer, mimeType, originalName, guestTokenId, uploadedBy } = input
+    const config = useRuntimeConfig()
+    const maxStandardSize = config.public.upload.maxStandardSize
 
     // Validate event exists
     const event = await eventsRepository.findById(eventId)
@@ -53,10 +66,10 @@ export const mediaService = {
       )
     }
 
-    // Validate file size
-    if (buffer.length > MAX_FILE_SIZE) {
+    // Validate file size (standard upload limit)
+    if (buffer.length > maxStandardSize) {
       throw new MediaServiceError(
-        'File too large. Maximum size is 500MB',
+        `File too large. Maximum size for standard uploads is ${Math.round(maxStandardSize / (1024 * 1024))}MB`,
         'FILE_TOO_LARGE',
         413
       )
@@ -110,6 +123,92 @@ export const mediaService = {
       originalName,
       mimeType,
       size: buffer.length,
+      storageKey,
+      type: mediaType,
+      uploadedBy,
+      ...variants
+    })
+
+    // Process video variants in background (slow)
+    if (mediaType === 'video') {
+      this.processVideoVariantsInBackground(media.id, eventId, filename)
+    }
+
+    return media
+  },
+
+  /**
+   * Upload and process media file from a file path
+   * Used by tus chunked uploads - more memory efficient for large files
+   */
+  async uploadMediaFromFile(input: UploadMediaFromFileInput): Promise<UploadMediaResult> {
+    const { eventId, filePath, mimeType, originalName, size, guestTokenId, uploadedBy } = input
+
+    // Validate event exists
+    const event = await eventsRepository.findById(eventId)
+    if (!event) {
+      throw new MediaServiceError('Event not found', 'NOT_FOUND', 404)
+    }
+
+    // Validate file type
+    if (!isAllowedMediaType(mimeType)) {
+      throw new MediaServiceError(
+        'Invalid file type. Supported formats: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM',
+        'INVALID_TYPE'
+      )
+    }
+
+    // Determine media type
+    const mediaType = getMediaTypeFromMime(mimeType)
+
+    // Move file to final location (efficient for large files)
+    const { filename, storageKey } = await storageService.moveToEvent(
+      eventId,
+      filePath,
+      originalName
+    )
+
+    // Process image variants synchronously (fast)
+    let variants = {
+      thumbnail: null as string | null,
+      thumbnailFallback: null as string | null,
+      preview: null as string | null,
+      previewFallback: null as string | null
+    }
+
+    if (mediaType === 'photo') {
+      try {
+        const processor = getProcessor(mimeType)
+        if (processor) {
+          const outputDir = storageService.getEventDir(eventId)
+          const finalPath = join(outputDir, filename)
+          // Read file for image processing (images are typically smaller)
+          const buffer = await readFile(finalPath)
+          const result = await processor.process(buffer, {
+            outputDir,
+            baseFilename: filename
+          })
+          variants = {
+            thumbnail: result.thumbnail ?? null,
+            thumbnailFallback: result.thumbnailFallback ?? null,
+            preview: result.preview ?? null,
+            previewFallback: result.previewFallback ?? null
+          }
+        }
+      } catch (err) {
+        console.error('Failed to generate image variants:', err)
+        // Continue without variants - original file is saved
+      }
+    }
+
+    // Create database record
+    const media = await mediaRepository.create({
+      eventId,
+      guestTokenId: guestTokenId ?? null,
+      filename,
+      originalName,
+      mimeType,
+      size,
       storageKey,
       type: mediaType,
       uploadedBy,

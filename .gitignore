@@ -31,5 +31,5 @@ prisma/*.db-journal
 
 # Docker volumes
 data/
-uploads/
+/uploads/
 package-lock.json

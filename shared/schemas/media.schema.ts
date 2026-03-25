@@ -23,8 +23,8 @@ export const ALLOWED_MEDIA_TYPES = [
   ...ALLOWED_VIDEO_TYPES
 ] as const
 
-// File constraints
-export const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB
+// File constraints (defaults for schema validation - actual limits are configurable via env)
+export const MAX_FILE_SIZE = 500 * 1024 * 1024 // 500MB default for standard uploads
 
 // Media type enum
 export const mediaTypeSchema = z.enum(['photo', 'video'])

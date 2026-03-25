@@ -43,6 +43,11 @@
               <span v-if="activeUploadsCount > 0" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">
                 {{ activeUploadsCount }}
               </span>
+              <span
+                v-else-if="resumableUploads && resumableUploads.length > 0"
+                class="w-2 h-2 bg-amber-500 rounded-full"
+                title="Incomplete uploads"
+              ></span>
             </span>
           </button>
           <button
@@ -67,11 +72,16 @@
       <div v-if="activeTab === 'upload'" class="p-6">
         <EventUploader
           :upload-queue="uploadQueue"
+          :resumable-uploads="resumableUploads"
           @add-files="addFilesToQueue"
           @cancel="cancelUpload"
+          @pause="pauseUpload"
+          @resume="resumeUpload"
           @retry="retryUpload"
           @remove="removeFromQueue"
           @clear-completed="clearCompleted"
+          @dismiss-resumable="dismissResumableUpload"
+          @clear-resumable="clearResumableUploads"
         />
       </div>
 
@@ -256,12 +266,15 @@ const {
 
 const {
   uploadQueue, addFiles: addFilesToQueue, cancelUpload,
-  retryUpload, removeFromQueue, clearCompleted
-} = useMediaUpload(`/api/events/${eventId}/upload`, refreshMedia)
+  pauseUpload, resumeUpload, retryUpload, removeFromQueue, clearCompleted,
+  resumableUploads, dismissResumableUpload, clearResumableUploads
+} = useMediaUpload(`/api/events/${eventId}/upload`, refreshMedia, {
+  metadata: { eventId }
+})
 
 // Computed property for active uploads count (avoids inline filter in template)
 const activeUploadsCount = computed(() =>
-  uploadQueue.value.filter(i => i.status === 'uploading' || i.status === 'pending').length
+  uploadQueue.value.filter(i => i.status === 'uploading' || i.status === 'pending' || i.status === 'paused').length
 )
 
 const {

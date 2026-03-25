@@ -44,6 +44,10 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
               </svg>
               Upload
+              <span v-if="activeUploadsCount > 0" class="text-xs bg-indigo-100 text-indigo-600 px-1.5 py-0.5 rounded-full">
+                {{ activeUploadsCount }}
+              </span>
+              <span v-else-if="resumableUploads && resumableUploads.length > 0" class="w-2 h-2 bg-amber-500 rounded-full" title="Incomplete uploads"></span>
             </span>
           </button>
         </nav>
@@ -193,11 +197,16 @@
           <div class="flex-1 min-h-[240px]">
             <EventUploader
               :upload-queue="uploadQueue"
+              :resumable-uploads="resumableUploads"
               @add-files="addFilesToQueue"
               @cancel="cancelUpload"
+              @pause="pauseUpload"
+              @resume="resumeUpload"
               @retry="retryUpload"
               @remove="removeFromQueue"
               @clear-completed="clearCompleted"
+              @dismiss-resumable="dismissResumableUpload"
+              @clear-resumable="clearResumableUploads"
             />
           </div>
 
@@ -315,8 +324,18 @@ const loadMoreTrigger = ref<HTMLElement | null>(null)
 // Upload composable
 const {
   uploadQueue, addFiles: addFilesToQueue, cancelUpload,
-  retryUpload, removeFromQueue, clearCompleted
-} = useMediaUpload(`/api/guest/${token}/upload`, onUploadComplete)
+  pauseUpload, resumeUpload, retryUpload, removeFromQueue, clearCompleted,
+  resumableUploads, dismissResumableUpload, clearResumableUploads
+} = useMediaUpload(`/api/guest/${token}/upload`, onUploadComplete, {
+  metadata: { guestToken: token }
+})
+
+// Active uploads count for tab indicator
+const activeUploadsCount = computed(() =>
+  uploadQueue.value.filter(item =>
+    item.status === 'uploading' || item.status === 'pending' || item.status === 'paused'
+  ).length
+)
 
 // Fetch guest data
 const { data: response, error } = await useFetch(`/api/guest/${token}`)

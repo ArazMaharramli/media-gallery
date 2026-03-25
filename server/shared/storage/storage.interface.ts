@@ -74,4 +74,35 @@ export interface IStorageService {
    * When switching to S3/MinIO/CDN, only this method needs to change.
    */
   getFileUrl(eventId: string, filename: string): string
+
+  /**
+   * Get the temp directory path for tus uploads
+   */
+  getTempDir(): string
+
+  /**
+   * Ensure the temp directory exists (async)
+   */
+  ensureTempDir(): Promise<string>
+
+  /**
+   * Ensure the temp directory exists (sync)
+   */
+  ensureTempDirSync(): string
+
+  /**
+   * Move a file from a source path to an event directory
+   * More efficient than save() for large files as it avoids copying
+   * @param eventId - The event ID
+   * @param sourcePath - Full path to the source file
+   * @param originalName - Original filename (used for extension)
+   * @param options - Optional save options
+   * @returns Storage file info
+   */
+  moveToEvent(
+    eventId: string,
+    sourcePath: string,
+    originalName: string,
+    options?: SaveOptions
+  ): Promise<StorageFile>
 }
