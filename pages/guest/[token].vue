@@ -29,7 +29,7 @@
               </svg>
               Gallery
               <span class="text-xs bg-gray-200 text-gray-600 px-1.5 py-0.5 rounded-full">
-                {{ allMedia.length }}
+                {{ displayedMedia.length }}
               </span>
             </span>
           </button>
@@ -58,9 +58,31 @@
         <!-- Toolbar -->
         <div class="flex items-center justify-between mb-4">
           <div class="text-sm text-gray-600">
-            <span class="font-medium">{{ totalMediaCount > 0 ? totalMediaCount : allMedia.length }}</span> items
+            <span class="font-medium">{{ totalMediaCount > 0 ? totalMediaCount : displayedMedia.length }}</span> items
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-4">
+            <!-- Uploaded by me toggle -->
+            <label v-if="permissions?.canUpload" class="flex items-center gap-2 cursor-pointer">
+              <span class="text-sm text-gray-600">Uploaded by me</span>
+              <button
+                type="button"
+                role="switch"
+                :aria-checked="showOnlyMine"
+                @click="showOnlyMine = !showOnlyMine"
+                :class="[
+                  'relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2',
+                  showOnlyMine ? 'bg-indigo-600' : 'bg-gray-200'
+                ]"
+              >
+                <span
+                  :class="[
+                    'pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out',
+                    showOnlyMine ? 'translate-x-4' : 'translate-x-0'
+                  ]"
+                />
+              </button>
+            </label>
+            <!-- View mode toggle -->
             <div class="flex items-center bg-gray-100 rounded-lg p-1">
               <button
                 @click="viewMode = 'grid'"
@@ -95,17 +117,17 @@
         </div>
 
         <!-- Empty State -->
-        <div v-if="allMedia.length === 0" class="text-center py-12">
+        <div v-if="displayedMedia.length === 0" class="text-center py-12">
           <svg class="mx-auto h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
-          <p class="mt-2 text-sm text-gray-500">No media in this gallery yet</p>
+          <p class="mt-2 text-sm text-gray-500">{{ showOnlyMine ? 'You haven\'t uploaded any media yet' : 'No media in this gallery yet' }}</p>
         </div>
 
         <!-- Grid View -->
         <div v-else-if="viewMode === 'grid'" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           <MediaCard
-            v-for="(item, index) in allMedia"
+            v-for="(item, index) in displayedMedia"
             :key="item.id"
             :media="item"
             :show-delete="canDeleteItem(item)"
@@ -117,7 +139,7 @@
         <!-- List View -->
         <div v-else class="divide-y border rounded-lg overflow-hidden">
           <div
-            v-for="(item, index) in allMedia"
+            v-for="(item, index) in displayedMedia"
             :key="item.id"
             @click="openLightbox(index)"
             class="flex items-center gap-4 p-4 hover:bg-gray-50 cursor-pointer transition-colors"
@@ -185,7 +207,7 @@
             </svg>
             <span class="text-sm">Loading more...</span>
           </div>
-          <div v-else-if="!hasMoreMedia && allMedia.length > 0" class="text-sm text-gray-400">
+          <div v-else-if="!hasMoreMedia && displayedMedia.length > 0" class="text-sm text-gray-400">
             {{ totalMediaCount }} items total
           </div>
         </div>
@@ -247,7 +269,7 @@
       :is-open="lightboxOpen"
       :current-media="currentMedia"
       :current-index="currentMediaIndex"
-      :total-count="allMedia.length"
+      :total-count="displayedMedia.length"
       :has-prev="hasPrevMedia"
       :has-next="hasNextMedia"
       @close="closeLightbox"
@@ -302,8 +324,8 @@ const viewMode = ref<'grid' | 'list'>('grid')
 const activeTab = ref<'gallery' | 'upload'>('gallery')
 const copied = ref(false)
 const deletingMediaId = ref<string | null>(null)
-const sharedMediaList = ref<MediaOutput[]>([])
-const ownUploadsList = ref<MediaOutput[]>([])
+const mediaList = ref<MediaOutput[]>([])
+const showOnlyMine = ref(false)
 
 // Delete modal state
 const showDeleteModal = ref(false)
@@ -352,23 +374,11 @@ const permissions = computed<Permissions | null>(() => response.value?.data?.per
 const tokenName = computed(() => response.value?.data?.tokenName || null)
 const tokenId = computed(() => response.value?.data?.tokenId || null)
 
-// Media lists
-const sharedMedia = computed<MediaOutput[]>(() =>
-  sharedMediaList.value.length > 0 ? sharedMediaList.value : (response.value?.data?.media || [])
-)
-
-const ownUploads = computed<MediaOutput[]>(() =>
-  ownUploadsList.value.length > 0 ? ownUploadsList.value : (response.value?.data?.ownUploads || [])
-)
-
-const allMedia = computed<MediaOutput[]>(() => {
-  const ownIds = new Set(ownUploads.value.map(m => m.id))
-  const filteredShared = sharedMedia.value.filter(m => !ownIds.has(m.id))
-  return [...filteredShared, ...ownUploads.value]
-})
+// Media list from server (already filtered and paginated)
+const displayedMedia = computed<MediaOutput[]>(() => mediaList.value)
 
 const canShowGallery = computed(() =>
-  permissions.value?.canView || ownUploads.value.length > 0
+  permissions.value?.canView || permissions.value?.canUpload
 )
 
 // Lightbox composable
@@ -377,22 +387,16 @@ const {
   currentItem: currentMedia, hasPrev: hasPrevMedia, hasNext: hasNextMedia,
   open: openLightbox, close: closeLightbox,
   prev: prevMedia, next: nextMedia
-} = useLightbox(allMedia)
+} = useLightbox(displayedMedia)
 
-// Sync media lists when response changes
-watch(() => response.value?.data?.media, (newMedia) => {
-  if (newMedia) sharedMediaList.value = [...newMedia]
-}, { immediate: true })
-
-watch(() => response.value?.data?.ownUploads, (newUploads) => {
-  if (newUploads) ownUploadsList.value = [...newUploads]
-}, { immediate: true })
-
-watch(() => response.value?.data?.pagination, (pagination) => {
-  if (pagination) {
-    totalMediaCount.value = pagination.total
-    hasMoreMedia.value = pagination.hasMore
-    currentPage.value = pagination.page
+// Sync state when response changes
+watch(() => response.value?.data, (data) => {
+  if (!data) return
+  if (data.media) mediaList.value = [...data.media]
+  if (data.pagination) {
+    totalMediaCount.value = data.pagination.total
+    hasMoreMedia.value = data.pagination.hasMore
+    currentPage.value = data.pagination.page
   }
 }, { immediate: true })
 
@@ -430,43 +434,42 @@ function canDeleteItem(item: MediaOutput): boolean {
   return permissions.value?.canDelete === true
 }
 
-// Upload complete handler — re-fetch own uploads
-async function onUploadComplete() {
+// Fetch media with current filter
+async function fetchMedia(page: number = 1, append: boolean = false) {
+  const params: Record<string, any> = { page, limit: 20 }
+  if (showOnlyMine.value) params.filter = 'mine'
+
   try {
-    const freshData = await $fetch(`/api/guest/${token}`) as any
-    if (freshData?.data?.ownUploads) {
-      ownUploadsList.value = [...freshData.data.ownUploads]
+    const res = await $fetch(`/api/guest/${token}`, { params }) as any
+    const { media, pagination } = res?.data || {}
+
+    if (media) {
+      mediaList.value = append ? [...mediaList.value, ...media] : media
+    }
+    if (pagination) {
+      totalMediaCount.value = pagination.total
+      hasMoreMedia.value = pagination.hasMore
+      currentPage.value = pagination.page
     }
   } catch {
-    // Silently fail — media will appear on next load
+    // Silently fail
   }
+}
+
+// Watch filter changes
+watch(showOnlyMine, () => fetchMedia(1))
+
+// Upload complete handler
+function onUploadComplete() {
+  fetchMedia(1)
 }
 
 // Load more media for infinite scroll
 async function loadMoreMedia() {
-  if (isLoadingMore.value || !hasMoreMedia.value || !permissions.value?.canView) return
-
+  if (isLoadingMore.value || !hasMoreMedia.value) return
   isLoadingMore.value = true
-  try {
-    const nextPage = currentPage.value + 1
-    const moreResponse = await $fetch(`/api/guest/${token}`, {
-      params: { page: nextPage, limit: 20 }
-    }) as any
-
-    if (moreResponse?.data?.media) {
-      sharedMediaList.value = [...sharedMediaList.value, ...moreResponse.data.media]
-    }
-
-    if (moreResponse?.data?.pagination) {
-      totalMediaCount.value = moreResponse.data.pagination.total
-      hasMoreMedia.value = moreResponse.data.pagination.hasMore
-      currentPage.value = moreResponse.data.pagination.page
-    }
-  } catch {
-    // Silently handle pagination errors
-  } finally {
-    isLoadingMore.value = false
-  }
+  await fetchMedia(currentPage.value + 1, true)
+  isLoadingMore.value = false
 }
 
 // Delete flow with modal
@@ -482,8 +485,8 @@ async function executeDelete() {
   deletingMediaId.value = mediaId
   try {
     await $fetch(`/api/guest/${token}/media/${mediaId}`, { method: 'DELETE' })
-    sharedMediaList.value = sharedMediaList.value.filter(m => m.id !== mediaId)
-    ownUploadsList.value = ownUploadsList.value.filter(m => m.id !== mediaId)
+    mediaList.value = mediaList.value.filter(m => m.id !== mediaId)
+    totalMediaCount.value = Math.max(0, totalMediaCount.value - 1)
     if (lightboxOpen.value && currentMedia.value?.id === mediaId) {
       closeLightbox()
     }

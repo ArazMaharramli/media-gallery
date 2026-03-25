@@ -15,9 +15,10 @@ export default defineEventHandler(async (event) => {
   const page = Math.max(1, parseInt(query.page as string) || 1)
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 20))
   const skip = (page - 1) * limit
+  const filterMine = query.filter === 'mine'
 
   const guestToken = await guestTokensRepository.findByTokenWithEvent(token)
-  if (!guestToken || !guestToken.active) {
+  if (!guestToken?.active) {
     throwNotFoundError('Guest access')
   }
 
@@ -25,30 +26,33 @@ export default defineEventHandler(async (event) => {
     throwNotFoundError('Guest access')
   }
 
-  const response: {
-    event: {
-      id: string
-      name: string
-      description: string | null
-      date: Date
-    }
-    permissions: {
-      canView: boolean
-      canUpload: boolean
-      canDelete: boolean
-    }
-    tokenId: string
-    tokenName: string | null
-    media?: any[]
-    ownUploads?: any[]
-    pagination?: {
-      page: number
-      limit: number
-      total: number
-      totalPages: number
-      hasMore: boolean
-    }
-  } = {
+  let media: any[] = []
+  let total = 0
+
+  if (filterMine || !guestToken.canView) {
+    // Show only own uploads
+    const result = await mediaRepository.findByGuestTokenId(guestToken.id, { skip, take: limit })
+    media = result.items
+    total = result.total
+  } else if (guestToken.mediaIds?.length) {
+    // Specific media assigned + own uploads (single query)
+    const result = await mediaRepository.findByIdsOrGuestTokenId(
+      guestToken.mediaIds,
+      guestToken.id,
+      { skip, take: limit }
+    )
+    media = result.items
+    total = result.total
+  } else {
+    // Can view all event media
+    const result = await mediaRepository.findByEventIdWithCount(guestToken.eventId, { skip, take: limit })
+    media = result.items
+    total = result.total
+  }
+
+  const totalPages = Math.ceil(total / limit)
+
+  return successResponse(event, {
     event: {
       id: guestToken.event.id,
       name: guestToken.event.name,
@@ -61,44 +65,14 @@ export default defineEventHandler(async (event) => {
       canDelete: guestToken.canDelete
     },
     tokenId: guestToken.id,
-    tokenName: guestToken.name
-  }
-
-  // Always fetch own uploads (not paginated)
-  const ownUploads = await mediaRepository.findByGuestTokenId(guestToken.id)
-  if (ownUploads.length > 0) {
-    response.ownUploads = resolveMediaUrlsArray(ownUploads)
-  }
-
-  // Include shared media if canView (with pagination)
-  if (guestToken.canView) {
-    let media: any[]
-    let total: number
-
-    if (guestToken.mediaIds && guestToken.mediaIds.length > 0) {
-      const allSelectedMedia = await mediaRepository.findByIds(guestToken.mediaIds)
-      total = allSelectedMedia.length
-      media = allSelectedMedia.slice(skip, skip + limit)
-    } else {
-      const [items, count] = await Promise.all([
-        mediaRepository.findByEventId(guestToken.eventId, { skip, take: limit }),
-        mediaRepository.countByEventId(guestToken.eventId)
-      ])
-      media = items
-      total = count
-    }
-
-    response.media = resolveMediaUrlsArray(media)
-
-    const totalPages = Math.ceil(total / limit)
-    response.pagination = {
+    tokenName: guestToken.name,
+    media: resolveMediaUrlsArray(media),
+    pagination: {
       page,
       limit,
       total,
       totalPages,
       hasMore: page < totalPages
     }
-  }
-
-  return successResponse(event, response)
+  })
 })

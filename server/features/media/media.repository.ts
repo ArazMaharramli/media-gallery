@@ -76,23 +76,67 @@ export const mediaRepository = {
   },
 
   /**
-   * Find all media uploaded by a specific guest token
+   * Find all media uploaded by a specific guest token with count
    */
-  async findByGuestTokenId(guestTokenId: string): Promise<SerializedMedia[]> {
-    const items = await prisma.media.findMany({
-      where: { guestTokenId },
-      orderBy: { createdAt: 'desc' }
-    })
-    return serializeMediaArray(items)
+  async findByGuestTokenId(
+    guestTokenId: string,
+    options?: PaginationOptions
+  ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const [items, total] = await prisma.$transaction([
+      prisma.media.findMany({
+        where: { guestTokenId },
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
+      }),
+      prisma.media.count({ where: { guestTokenId } })
+    ])
+    return { items: serializeMediaArray(items), total }
   },
 
   /**
-   * Count media items for an event
+   * Find media by IDs OR guestTokenId (for shared + own uploads)
    */
-  async countByEventId(eventId: string): Promise<number> {
-    return prisma.media.count({
-      where: { eventId }
-    })
+  async findByIdsOrGuestTokenId(
+    ids: string[],
+    guestTokenId: string,
+    options?: PaginationOptions
+  ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const where = {
+      OR: [
+        { id: { in: ids } },
+        { guestTokenId }
+      ]
+    }
+    const [items, total] = await prisma.$transaction([
+      prisma.media.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
+      }),
+      prisma.media.count({ where })
+    ])
+    return { items: serializeMediaArray(items), total }
+  },
+
+  /**
+   * Find all media for an event with count
+   */
+  async findByEventIdWithCount(
+    eventId: string,
+    options?: PaginationOptions
+  ): Promise<{ items: SerializedMedia[]; total: number }> {
+    const [items, total] = await prisma.$transaction([
+      prisma.media.findMany({
+        where: { eventId },
+        orderBy: { createdAt: 'desc' },
+        skip: options?.skip,
+        take: options?.take
+      }),
+      prisma.media.count({ where: { eventId } })
+    ])
+    return { items: serializeMediaArray(items), total }
   },
 
   /**

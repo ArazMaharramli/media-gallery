@@ -11,16 +11,13 @@ export default defineEventHandler(async (event) => {
   const limit = Math.min(100, Math.max(1, parseInt(query.limit as string) || 20))
   const skip = (page - 1) * limit
 
-  const [media, total] = await Promise.all([
-    mediaRepository.findByEventId(eventData.id, { skip, take: limit }),
-    mediaRepository.countByEventId(eventData.id)
-  ])
+  const { items, total } = await mediaRepository.findByEventIdWithCount(eventData.id, { skip, take: limit })
 
   const totalPages = Math.ceil(total / limit)
   const hasMore = page < totalPages
 
   return successResponse(event, {
-    items: resolveMediaUrlsArray(media),
+    items: resolveMediaUrlsArray(items),
     pagination: {
       page,
       limit,
