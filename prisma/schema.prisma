@@ -48,7 +48,7 @@ model GuestToken {
 }
 
 model Media {
-  id                String       @id @default(uuid())
+  id                String           @id @default(uuid())
   eventId           String
   guestTokenId      String?
   filename          String
@@ -62,7 +62,9 @@ model Media {
   thumbnailFallback String?
   preview           String?
   previewFallback   String?
-  createdAt         DateTime     @default(now())
+  processingStatus  ProcessingStatus @default(completed)
+  processingError   String?
+  createdAt         DateTime         @default(now())
 
   event      Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
   guestToken GuestToken? @relation(fields: [guestTokenId], references: [id], onDelete: SetNull)
@@ -70,6 +72,7 @@ model Media {
   @@index([eventId])
   @@index([guestTokenId])
   @@index([createdAt])
+  @@index([processingStatus])
   @@map("media")
 }
 
@@ -81,4 +84,11 @@ enum MediaType {
 enum UploaderType {
   photographer
   guest
+}
+
+enum ProcessingStatus {
+  pending
+  processing
+  completed
+  failed
 }

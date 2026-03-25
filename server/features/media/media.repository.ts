@@ -4,7 +4,7 @@
  */
 import { prisma } from '~/server/utils/prisma'
 import { serializeMedia, serializeMediaArray } from '~/server/shared/utils'
-import type { Media, MediaType, UploaderType, Prisma } from '@prisma/client'
+import type { Media, MediaType, UploaderType, ProcessingStatus } from '@prisma/client'
 
 export interface CreateMediaData {
   eventId: string
@@ -27,6 +27,8 @@ export interface UpdateMediaData {
   thumbnailFallback?: string | null
   preview?: string | null
   previewFallback?: string | null
+  processingStatus?: ProcessingStatus
+  processingError?: string | null
 }
 
 export interface PaginationOptions {
@@ -143,6 +145,9 @@ export const mediaRepository = {
    * Create a new media record
    */
   async create(data: CreateMediaData): Promise<SerializedMedia> {
+    // Videos start as 'pending', photos are 'completed' (no background processing)
+    const processingStatus = data.type === 'video' ? 'pending' : 'completed'
+
     const media = await prisma.media.create({
       data: {
         eventId: data.eventId,
@@ -157,7 +162,8 @@ export const mediaRepository = {
         thumbnail: data.thumbnail ?? null,
         thumbnailFallback: data.thumbnailFallback ?? null,
         preview: data.preview ?? null,
-        previewFallback: data.previewFallback ?? null
+        previewFallback: data.previewFallback ?? null,
+        processingStatus
       }
     })
     return serializeMedia(media)

@@ -269,17 +269,25 @@ export const mediaService = {
   async processVideoVariantsInBackground(
     mediaId: string,
     eventId: string,
-    filename: string
+    filename: string,
+    retryCount: number = 0
   ): Promise<void> {
+    const maxRetries = 3
+
     // Run asynchronously, don't await
     setImmediate(async () => {
       try {
-        console.log('Starting background video processing for:', filename)
+        // Set status to processing
+        await mediaRepository.update(mediaId, {
+          processingStatus: 'processing',
+          processingError: null
+        })
 
-        const processor = getProcessor('video/mp4') // Video processor handles all video types
+        console.log(`Processing video (attempt ${retryCount + 1}/${maxRetries + 1}):`, filename)
+
+        const processor = getProcessor('video/mp4')
         if (!processor) {
-          console.error('No video processor found')
-          return
+          throw new Error('No video processor found')
         }
 
         const outputDir = storageService.getEventDir(eventId)
@@ -290,20 +298,62 @@ export const mediaService = {
           baseFilename: filename
         })
 
-        // Update database with variant paths
+        // Success - update with variants
         await mediaRepository.update(mediaId, {
           thumbnail: result.thumbnail ?? null,
           thumbnailFallback: result.thumbnailFallback ?? null,
           preview: result.preview ?? null,
-          previewFallback: result.previewFallback ?? null
+          previewFallback: result.previewFallback ?? null,
+          processingStatus: 'completed',
+          processingError: null
         })
 
-        console.log('Video processing complete for:', mediaId)
+        console.log('Video processing complete:', mediaId)
       } catch (err) {
-        console.error('Background video processing failed:', err)
-        // Record stays without variants - original will be used as fallback
+        const errorMsg = err instanceof Error ? err.message : 'Unknown error'
+        console.error(`Video processing failed (attempt ${retryCount + 1}):`, errorMsg)
+
+        if (retryCount < maxRetries) {
+          // Schedule retry with exponential backoff
+          const delay = Math.pow(2, retryCount) * 5000 // 5s, 10s, 20s
+          console.log(`Retrying in ${delay}ms...`)
+
+          await mediaRepository.update(mediaId, {
+            processingStatus: 'pending',
+            processingError: `Retry ${retryCount + 1}/${maxRetries}: ${errorMsg}`
+          })
+
+          setTimeout(() => {
+            this.processVideoVariantsInBackground(mediaId, eventId, filename, retryCount + 1)
+          }, delay)
+        } else {
+          // Max retries reached
+          await mediaRepository.update(mediaId, {
+            processingStatus: 'failed',
+            processingError: `Failed after ${maxRetries + 1} attempts: ${errorMsg}`
+          })
+          console.error('Video processing permanently failed:', mediaId)
+        }
       }
     })
+  },
+
+  /**
+   * Retry processing for a failed video
+   */
+  async retryProcessing(mediaId: string): Promise<void> {
+    const media = await mediaRepository.findById(mediaId)
+    if (!media) {
+      throw new MediaServiceError('Media not found', 'NOT_FOUND', 404)
+    }
+    if (media.type !== 'video') {
+      throw new MediaServiceError('Only videos can be reprocessed', 'INVALID_TYPE', 400)
+    }
+    if (media.processingStatus !== 'failed') {
+      throw new MediaServiceError('Only failed media can be retried', 'INVALID_STATE', 400)
+    }
+
+    this.processVideoVariantsInBackground(mediaId, media.eventId, media.filename, 0)
   }
 }
 
