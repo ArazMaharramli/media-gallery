@@ -16,15 +16,18 @@ class LocalStorageService implements IStorageService {
   }
 
   /**
-   * Resolve the upload directory based on environment
-   * In production (.output), uploads are in parent directory
+   * Resolve the upload directory from runtime config
+   * Set NUXT_UPLOAD_DIR environment variable to override
    */
   private resolveUploadDir(): string {
-    const isProduction = process.cwd().includes('.output')
-    if (isProduction) {
-      return join(process.cwd(), '..', 'uploads')
+    const config = useRuntimeConfig()
+    const configuredDir = config.upload?.dir || './uploads'
+
+    // If absolute path, use as-is; otherwise resolve relative to cwd
+    if (configuredDir.startsWith('/')) {
+      return configuredDir
     }
-    return join(process.cwd(), 'uploads')
+    return join(process.cwd(), configuredDir)
   }
 
   getUploadDir(): string {

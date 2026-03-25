@@ -26,6 +26,7 @@ services:
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/media_gallery
+      NUXT_UPLOAD_DIR: /app/uploads
     volumes:
       - uploads_data:/app/uploads
     depends_on:

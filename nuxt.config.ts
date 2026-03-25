@@ -17,6 +17,7 @@ export default defineNuxtConfig({
   runtimeConfig: {
     // Server-only config (not exposed to client)
     upload: {
+      dir: './uploads', // NUXT_UPLOAD_DIR - absolute path or relative to cwd
       maxChunkedSize: 10 * 1024 * 1024 * 1024, // 10GB - NUXT_UPLOAD_MAX_CHUNKED_SIZE
       staleThresholdHours: 24 // NUXT_UPLOAD_STALE_THRESHOLD_HOURS
     },
