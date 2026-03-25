@@ -73,7 +73,8 @@ This document outlines performance, security, scalability, reliability, and depl
 | File type validation | Check MIME type AND file extension |
 | Malicious files | Scan file headers, not just extension |
 | Storage isolation | Files stored with generated names, not user input |
-| Path traversal | Storage keys generated server-side |
+| Path traversal | Filename validation + resolved path verification |
+| Directory escape | Verify file paths stay within upload directory |
 
 ### Headers & Transport
 | Header/Feature | Value |

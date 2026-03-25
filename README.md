@@ -9,6 +9,11 @@ A media gallery application for event photographers to share photos and videos w
 - Generate view-only gallery links
 - QR code generation for easy sharing
 - Support for photos and videos
+- **Image optimization**: WebP + JPEG thumbnails and previews
+- **Video optimization**: WebM/VP9 + MP4/H.264 compressed previews
+- **Next-gen format support**: Browser auto-selects best format
+- **Infinite scroll**: Paginated media loading
+- **Responsive design**: Mobile-friendly layout with sticky footer
 
 ## Tech Stack
 
@@ -152,6 +157,13 @@ media-gallery/
 ├── Dockerfile          # App container
 └── .env                # Environment variables
 ```
+
+## Security
+
+- **Path traversal protection**: Filename validation and directory boundary checks
+- **Token-based access**: Cryptographically random 16-character tokens
+- **Input validation**: Zod schemas for all API inputs
+- **MIME type verification**: File type validation on upload
 
 ## License
 

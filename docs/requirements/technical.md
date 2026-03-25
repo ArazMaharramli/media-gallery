@@ -65,7 +65,10 @@ This document outlines the technology stack, constraints, and deployment require
 ### Media Optimization (Videos)
 - **Video thumbnail:** Frame extracted at 1 second, 300px width
 - **Thumbnail formats:** WebP + JPEG fallback
-- **Original videos:** Preserved (no transcoding)
+- **Video preview:** Compressed preview for streaming (720p)
+- **Preview formats:** WebM/VP9 (next-gen) + MP4/H.264 fallback
+- **Original videos:** Preserved for download
+- **Browser support:** Automatic format selection via `<source>` elements
 - **System requirement:** FFmpeg must be installed on server
 
 ### Security

@@ -418,3 +418,63 @@ import { eventsRepository, eventsService } from '~/server/features/events'
 | Cross-cutting concerns | Middleware |
 | Creating objects based on runtime conditions | Factory |
 | Simplifying imports | Barrel Export |
+| Input sanitization and path security | Validation Guards |
+
+---
+
+## 7. Validation Guards Pattern
+
+**Purpose:** Protect against malicious input by validating and sanitizing user-provided data before use.
+
+**Location:** `server/api/uploads/[eventId]/[filename].get.ts`
+
+### Structure
+
+```typescript
+/**
+ * Validate that a filename is safe (no path traversal)
+ */
+function isSafeFilename(filename: string): boolean {
+  const normalized = normalize(filename)
+  return !normalized.includes('..') &&
+         !normalized.startsWith('/') &&
+         !normalized.includes('\\') &&
+         normalized === filename
+}
+
+/**
+ * Validate that the resolved path is within the allowed directory
+ */
+function isPathWithinDirectory(filePath: string, directory: string): boolean {
+  const resolvedPath = resolve(filePath)
+  const resolvedDirectory = resolve(directory)
+  return resolvedPath.startsWith(resolvedDirectory + '/')
+}
+
+export default defineEventHandler(async (event) => {
+  const filename = getRouterParam(event, 'filename')
+
+  // Guard 1: Validate filename format
+  if (!isSafeFilename(filename)) {
+    throw createError({ statusCode: 400, message: 'Invalid filename' })
+  }
+
+  const eventDir = storageService.getEventDir(eventId)
+  const targetPath = join(eventDir, filename)
+
+  // Guard 2: Verify resolved path stays within directory
+  if (!isPathWithinDirectory(targetPath, eventDir)) {
+    throw createError({ statusCode: 400, message: 'Invalid filename' })
+  }
+
+  // Safe to proceed with file operations
+  return serveFile(targetPath)
+})
+```
+
+### Benefits
+
+- **Defense in Depth:** Multiple validation layers
+- **Path Traversal Protection:** Prevents `../` attacks
+- **Directory Escape Prevention:** Ensures files stay within bounds
+- **Early Rejection:** Fails fast before file operations
