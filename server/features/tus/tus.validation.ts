@@ -4,7 +4,7 @@
  */
 import { eventsRepository } from '~/server/features/events'
 import { guestTokensRepository } from '~/server/features/tokens'
-import { isAllowedMediaType } from '~/shared/schemas'
+import { isAllowedMediaType, validateFileExtension } from '~/shared/schemas'
 import type { TusUploadMetadata, ValidatedUploadContext } from './tus.types'
 
 /**
@@ -70,6 +70,11 @@ export async function validateUploadMetadata(
     throw new Error(
       'Invalid file type. Supported formats: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM'
     )
+  }
+
+  // Validate file extension matches MIME type
+  if (!validateFileExtension(metadata.filename, metadata.filetype)) {
+    throw new Error('File extension does not match file type')
   }
 
   // Photographer upload path - validate eventId

@@ -8,7 +8,7 @@ import { eventsRepository } from '~/server/features/events'
 import { mediaRepository, type SerializedMedia } from './media.repository'
 import { getProcessor } from './processors'
 import { storageService } from '~/server/shared/storage'
-import { getMediaTypeFromMime, isAllowedMediaType } from '~/shared/schemas'
+import { getMediaTypeFromMime, isAllowedMediaType, validateFileExtension } from '~/shared/schemas'
 
 export interface UploadMediaInput {
   eventId: string
@@ -63,6 +63,14 @@ export const mediaService = {
       throw new MediaServiceError(
         'Invalid file type. Supported formats: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM',
         'INVALID_TYPE'
+      )
+    }
+
+    // Validate file extension matches MIME type
+    if (!validateFileExtension(originalName, mimeType)) {
+      throw new MediaServiceError(
+        'File extension does not match file type',
+        'INVALID_EXTENSION'
       )
     }
 
@@ -155,6 +163,14 @@ export const mediaService = {
       throw new MediaServiceError(
         'Invalid file type. Supported formats: JPG, PNG, GIF, WEBP, MP4, MOV, WEBM',
         'INVALID_TYPE'
+      )
+    }
+
+    // Validate file extension matches MIME type
+    if (!validateFileExtension(originalName, mimeType)) {
+      throw new MediaServiceError(
+        'File extension does not match file type',
+        'INVALID_EXTENSION'
       )
     }
 

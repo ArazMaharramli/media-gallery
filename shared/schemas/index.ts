@@ -33,6 +33,7 @@ export {
   mediaOutputSchema,
   getMediaTypeFromMime,
   isAllowedMediaType,
+  validateFileExtension,
   type MediaType,
   type UploaderType,
   type UploadMediaInput,

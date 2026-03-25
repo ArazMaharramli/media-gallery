@@ -78,3 +78,22 @@ export function getMediaTypeFromMime(mimeType: string): MediaType {
 export function isAllowedMediaType(mimeType: string): boolean {
   return (ALLOWED_MEDIA_TYPES as readonly string[]).includes(mimeType)
 }
+
+// Map MIME types to allowed file extensions
+const MIME_TO_EXTENSIONS: Record<string, string[]> = {
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/png': ['.png'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+  'video/mp4': ['.mp4'],
+  'video/quicktime': ['.mov'],
+  'video/webm': ['.webm']
+}
+
+// Validate that file extension matches the declared MIME type
+export function validateFileExtension(filename: string, mimeType: string): boolean {
+  const ext = filename.toLowerCase().slice(filename.lastIndexOf('.'))
+  const allowedExtensions = MIME_TO_EXTENSIONS[mimeType]
+  if (!allowedExtensions) return false
+  return allowedExtensions.includes(ext)
+}
