@@ -28,8 +28,6 @@ export default defineNuxtConfig({
       appUrl: '', // NUXT_PUBLIC_APP_URL - used for CORS validation
       upload: {
         chunkSize: 5 * 1024 * 1024, // 5MB - NUXT_PUBLIC_UPLOAD_CHUNK_SIZE
-        chunkedThreshold: 50 * 1024 * 1024, // 50MB - NUXT_PUBLIC_UPLOAD_CHUNKED_THRESHOLD
-        maxStandardSize: 500 * 1024 * 1024, // 500MB - NUXT_PUBLIC_UPLOAD_MAX_STANDARD_SIZE
         maxChunkedSize: 10 * 1024 * 1024 * 1024 // 10GB - NUXT_PUBLIC_UPLOAD_MAX_CHUNKED_SIZE
       }
     }

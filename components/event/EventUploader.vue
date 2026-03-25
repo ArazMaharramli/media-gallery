@@ -114,7 +114,6 @@
           <p class="text-sm font-medium text-gray-900 truncate">{{ item.file.name }}</p>
           <p class="text-xs text-gray-500">
             {{ formatFileSize(item.file.size) }}
-            <span v-if="item.isChunked" class="text-indigo-500 ml-1">(chunked)</span>
           </p>
 
           <!-- Progress Bar -->
@@ -146,8 +145,8 @@
           <!-- Pending -->
           <span v-if="item.status === 'pending'" class="text-xs text-gray-400">Waiting...</span>
 
-          <!-- Uploading (chunked) - show pause and cancel -->
-          <div v-else-if="item.status === 'uploading' && item.isChunked" class="flex items-center gap-1">
+          <!-- Uploading - show pause and cancel -->
+          <div v-else-if="item.status === 'uploading'" class="flex items-center gap-1">
             <button
               @click="$emit('pause', item.id)"
               class="p-1 text-gray-400 hover:text-yellow-500"
@@ -168,19 +167,7 @@
             </button>
           </div>
 
-          <!-- Uploading (standard) - show only cancel -->
-          <button
-            v-else-if="item.status === 'uploading'"
-            @click="$emit('cancel', item.id)"
-            class="p-1 text-gray-400 hover:text-red-500"
-            title="Cancel"
-          >
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-
-          <!-- Paused (chunked only) - show resume and cancel -->
+          <!-- Paused - show resume and cancel -->
           <div v-else-if="item.status === 'paused'" class="flex items-center gap-1">
             <button
               @click="$emit('resume', item.id)"
@@ -245,7 +232,6 @@ interface UploadQueueItem {
   progress: number
   bytesUploaded?: number
   error?: string
-  isChunked?: boolean
 }
 
 interface ResumableUploadItem {

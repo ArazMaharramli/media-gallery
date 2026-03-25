@@ -1,7 +1,7 @@
 /**
  * Media upload composable
- * Manages upload queue and file upload operations
- * Supports both standard XHR uploads and chunked tus uploads for large files
+ * Manages upload queue using chunked tus protocol for all uploads
+ * Provides pause/resume capability for all files
  */
 import { ref, computed, watch } from 'vue'
 import { formatFileSize } from '~/utils/formatters'
@@ -15,8 +15,6 @@ export interface UploadQueueItem {
   progress: number
   bytesUploaded?: number
   error?: string
-  abortController?: AbortController
-  isChunked: boolean
   tusUploadId?: string
 }
 
@@ -25,7 +23,7 @@ export interface MediaUploadOptions {
 }
 
 export function useMediaUpload(
-  uploadUrl: string,
+  _uploadUrl: string, // Kept for API compatibility, but tus endpoint is used
   onUploadComplete?: () => void,
   options?: MediaUploadOptions
 ) {
@@ -35,7 +33,7 @@ export function useMediaUpload(
 
   // Initialize chunked upload and strategy composables
   const chunkedUpload = useChunkedUpload('/api/tus')
-  const { shouldUseChunkedUpload, isFileSizeValid, formatMaxSize } = useUploadStrategy()
+  const { isFileSizeValid, formatMaxSize } = useUploadStrategy()
 
   // Computed
   const hasActiveUploads = computed(() =>
@@ -91,27 +89,21 @@ export function useMediaUpload(
     for (const file of files) {
       // Check if file size is valid
       if (!isFileSizeValid(file)) {
-        const isChunked = shouldUseChunkedUpload(file)
-        // Add as error item
         newItems.push({
           id: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
           file,
           status: 'error',
           progress: 0,
-          error: `File too large. Maximum size is ${formatMaxSize(isChunked)}`,
-          isChunked
+          error: `File too large. Maximum size is ${formatMaxSize()}`
         })
         continue
       }
-
-      const isChunked = shouldUseChunkedUpload(file)
 
       newItems.push({
         id: `upload-${Date.now()}-${Math.random().toString(36).substring(7)}`,
         file,
         status: 'pending',
-        progress: 0,
-        isChunked
+        progress: 0
       })
     }
 
@@ -124,7 +116,7 @@ export function useMediaUpload(
   }
 
   /**
-   * Process the upload queue (one at a time for max speed)
+   * Process the upload queue (one at a time)
    */
   async function processQueue() {
     if (isProcessingQueue.value) return
@@ -135,11 +127,7 @@ export function useMediaUpload(
       const pendingItem = uploadQueue.value.find(item => item.status === 'pending')
       if (!pendingItem) break
 
-      if (pendingItem.isChunked) {
-        await uploadChunkedFile(pendingItem)
-      } else {
-        await uploadStandardFile(pendingItem)
-      }
+      await uploadFile(pendingItem)
     }
 
     isProcessingQueue.value = false
@@ -148,7 +136,7 @@ export function useMediaUpload(
   /**
    * Upload a file using chunked/tus protocol
    */
-  async function uploadChunkedFile(item: UploadQueueItem) {
+  async function uploadFile(item: UploadQueueItem) {
     const index = uploadQueue.value.findIndex(i => i.id === item.id)
     if (index === -1) return
 
@@ -178,111 +166,21 @@ export function useMediaUpload(
   }
 
   /**
-   * Upload a file using standard XHR
-   */
-  async function uploadStandardFile(item: UploadQueueItem) {
-    const index = uploadQueue.value.findIndex(i => i.id === item.id)
-    if (index === -1) return
-
-    // Create abort controller
-    const abortController = new AbortController()
-    const itemId = item.id
-
-    // Update status to uploading
-    uploadQueue.value[index] = {
-      ...uploadQueue.value[index],
-      status: 'uploading',
-      progress: 0,
-      abortController
-    }
-
-    try {
-      const formData = new FormData()
-      formData.append('file', item.file)
-
-      // Use XMLHttpRequest for progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest()
-
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const progress = Math.round((e.loaded / e.total) * 100)
-            const idx = uploadQueue.value.findIndex(i => i.id === itemId)
-            if (idx !== -1) {
-              uploadQueue.value[idx] = {
-                ...uploadQueue.value[idx],
-                progress,
-                bytesUploaded: e.loaded
-              }
-            }
-          }
-        }
-
-        xhr.onload = () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve()
-          } else {
-            try {
-              const response = JSON.parse(xhr.responseText)
-              reject(new Error(response.error?.message || 'Upload failed'))
-            } catch {
-              reject(new Error('Upload failed'))
-            }
-          }
-        }
-
-        xhr.onerror = () => reject(new Error('Network error'))
-        xhr.onabort = () => reject(new Error('Upload cancelled'))
-
-        // Handle abort signal
-        abortController.signal.addEventListener('abort', () => {
-          xhr.abort()
-        })
-
-        xhr.open('POST', uploadUrl)
-        xhr.send(formData)
-      })
-
-      // Mark as completed
-      const completedIdx = uploadQueue.value.findIndex(i => i.id === itemId)
-      if (completedIdx !== -1) {
-        uploadQueue.value[completedIdx] = {
-          ...uploadQueue.value[completedIdx],
-          status: 'completed',
-          progress: 100
-        }
-      }
-
-      // Notify completion
-      onUploadComplete?.()
-    } catch (err: unknown) {
-      const errorIdx = uploadQueue.value.findIndex(i => i.id === itemId)
-      if (errorIdx !== -1) {
-        uploadQueue.value[errorIdx] = {
-          ...uploadQueue.value[errorIdx],
-          status: 'error',
-          error: err instanceof Error ? err.message : 'Upload failed'
-        }
-      }
-    }
-  }
-
-  /**
-   * Pause a chunked upload
+   * Pause an upload
    */
   function pauseUpload(id: string) {
     const item = uploadQueue.value.find(i => i.id === id)
-    if (!item || !item.isChunked || !item.tusUploadId) return
+    if (!item?.tusUploadId) return
 
     chunkedUpload.pause(item.tusUploadId)
   }
 
   /**
-   * Resume a paused chunked upload
+   * Resume a paused upload
    */
   function resumeUpload(id: string) {
     const item = uploadQueue.value.find(i => i.id === id)
-    if (!item || !item.isChunked || !item.tusUploadId) return
+    if (!item?.tusUploadId) return
 
     chunkedUpload.resume(item.tusUploadId)
   }
@@ -296,12 +194,8 @@ export function useMediaUpload(
 
     const item = uploadQueue.value[index]
 
-    if (item.isChunked && item.tusUploadId) {
-      // Cancel chunked upload
+    if (item.tusUploadId) {
       chunkedUpload.cancel(item.tusUploadId)
-    } else if (item.status === 'uploading' && item.abortController) {
-      // Cancel standard upload
-      item.abortController.abort()
     }
 
     // Remove from queue

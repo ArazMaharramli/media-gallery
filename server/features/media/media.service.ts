@@ -50,7 +50,7 @@ export const mediaService = {
   async uploadMedia(input: UploadMediaInput): Promise<UploadMediaResult> {
     const { eventId, buffer, mimeType, originalName, guestTokenId, uploadedBy } = input
     const config = useRuntimeConfig()
-    const maxStandardSize = config.public.upload.maxStandardSize
+    const maxUploadSize = config.upload.maxChunkedSize
 
     // Validate event exists
     const event = await eventsRepository.findById(eventId)
@@ -66,10 +66,10 @@ export const mediaService = {
       )
     }
 
-    // Validate file size (standard upload limit)
-    if (buffer.length > maxStandardSize) {
+    // Validate file size
+    if (buffer.length > maxUploadSize) {
       throw new MediaServiceError(
-        `File too large. Maximum size for standard uploads is ${Math.round(maxStandardSize / (1024 * 1024))}MB`,
+        `File too large. Maximum size is ${Math.round(maxUploadSize / (1024 * 1024 * 1024))}GB`,
         'FILE_TOO_LARGE',
         413
       )
