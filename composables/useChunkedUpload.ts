@@ -1,7 +1,6 @@
 /**
  * Chunked upload composable using tus protocol
  * Enables reliable large file uploads with pause/resume capability
- * Includes SHA-256 checksum verification for data integrity (ISSUE-004)
  */
 import * as tus from 'tus-js-client'
 
@@ -37,21 +36,6 @@ export interface ResumableUploadItem {
 }
 
 const STORAGE_KEY = 'chunked-uploads-pending'
-
-/**
- * Calculate SHA-256 checksum of entire file using Web Crypto API
- * Returns base64-encoded checksum
- */
-async function calculateFileChecksum(file: File): Promise<string> {
-  const buffer = await file.arrayBuffer()
-  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
-  const hashArray = new Uint8Array(hashBuffer)
-  let binary = ''
-  for (let i = 0; i < hashArray.length; i++) {
-    binary += String.fromCharCode(hashArray[i])
-  }
-  return btoa(binary)
-}
 
 /** Save pending uploads to localStorage */
 function persistUploads(uploads: Map<string, ChunkedUploadItem>): void {
@@ -164,15 +148,7 @@ export function useChunkedUpload(endpoint: string = '/api/tus') {
       removePendingUpload(matchingResumable.id)
     }
 
-    // Calculate file checksum for final verification (ISSUE-004)
-    let fileChecksum: string | undefined
-    try {
-      fileChecksum = await calculateFileChecksum(file)
-    } catch (error) {
-      console.debug('Could not calculate file checksum:', error)
-    }
-
-    // Create tus upload instance with checksum verification
+    // Create tus upload instance
     const upload = new tus.Upload(file, {
       endpoint,
       chunkSize,
@@ -180,8 +156,6 @@ export function useChunkedUpload(endpoint: string = '/api/tus') {
       metadata: {
         filename: file.name,
         filetype: file.type,
-        // Include file checksum for server-side verification
-        ...(fileChecksum && { checksum: `sha256 ${fileChecksum}` }),
         ...metadata
       },
 
