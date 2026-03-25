@@ -153,11 +153,12 @@ export function useMediaUpload(
     // Start the chunked upload
     await chunkedUpload.start(tusId)
 
-    // Wait for completion (watch handles status updates)
+    // Wait for completion, error, or pause (watch handles status updates)
     await new Promise<void>((resolve) => {
       const checkInterval = setInterval(() => {
         const tusUpload = chunkedUpload.getUpload(tusId)
-        if (!tusUpload || tusUpload.status === 'completed' || tusUpload.status === 'error') {
+        // Resolve when completed, errored, or paused (allow queue to continue)
+        if (!tusUpload || tusUpload.status === 'completed' || tusUpload.status === 'error' || tusUpload.status === 'paused') {
           clearInterval(checkInterval)
           resolve()
         }
@@ -173,6 +174,9 @@ export function useMediaUpload(
     if (!item?.tusUploadId) return
 
     chunkedUpload.pause(item.tusUploadId)
+
+    // Queue will automatically continue to next pending item
+    // since uploadFile resolves when paused
   }
 
   /**
