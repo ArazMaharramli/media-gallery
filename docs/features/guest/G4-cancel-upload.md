@@ -1,6 +1,6 @@
-# G4: Cancel Upload
+# G4: Cancel/Pause/Resume Upload
 
-**Description:** Cancel, retry, or remove uploads from the queue.
+**Description:** Control uploads with pause, resume, cancel, and retry actions.
 
 **Entry Point:** Action buttons on upload queue items
 
@@ -8,39 +8,64 @@
 
 ## Acceptance Criteria
 
-- [x] Cancel button (X) shown on uploading items
-- [x] In-progress uploads: XMLHttpRequest aborted, item removed from queue
-- [x] Pending uploads: wait in queue until their turn
-- [x] No confirmation needed for cancel
+- [x] Pause button shown on uploading items
+- [x] Resume button shown on paused items
+- [x] Cancel button shown on uploading and paused items
+- [x] Cancel aborts tus upload and removes from queue
+- [x] Pause stops upload, preserves progress
+- [x] Resume continues from last uploaded chunk
 - [x] Failed uploads show Retry and Remove buttons
-- [x] Retry resets item to pending and re-queues
+- [x] Retry creates new upload and restarts
 - [x] Remove deletes failed item from queue
-- [x] "Clear completed" button removes all completed items at once
-- [x] User can re-add same files after cancel/remove
+- [x] "Clear completed" removes all completed/errored items
+- [x] User can re-add same files after cancel
 
 ---
 
 ## Queue Item Actions
 
-| State | Action | Button | Behavior |
-|-------|--------|--------|----------|
-| Pending | - | None | Waits in queue |
-| Uploading | Cancel | X (cross) | Aborts XHR, removes from queue |
-| Complete | - | None | Stays until cleared |
-| Error | Retry | ↻ (refresh) | Resets to pending, re-queues |
-| Error | Remove | X (cross) | Removes from queue |
+| State | Actions | Buttons |
+|-------|---------|---------|
+| Uploading | Pause, Cancel | ⏸ (pause), X (cancel) |
+| Paused | Resume, Cancel | ▶ (play), X (cancel) |
+| Complete | Clear | (via "Clear completed") |
+| Error | Retry, Remove | ↻ (refresh), X (remove) |
 
 ---
 
 ## Implementation Details
 
-### Cancel (Uploading)
+### Pause Upload
+```typescript
+function pauseUpload(id: string) {
+  const item = uploadQueue.value.find(i => i.id === id)
+  if (item?.tusUploadId) {
+    chunkedUpload.pause(item.tusUploadId)
+    // Status updates via watch
+  }
+}
+```
+
+### Resume Upload
+```typescript
+function resumeUpload(id: string) {
+  const item = uploadQueue.value.find(i => i.id === id)
+  if (item?.tusUploadId) {
+    chunkedUpload.resume(item.tusUploadId)
+    // Continues from last chunk
+  }
+}
+```
+
+### Cancel Upload
 ```typescript
 function cancelUpload(id: string) {
   const item = uploadQueue.value.find(i => i.id === id)
-  if (item?.xhr) {
-    item.xhr.abort()  // Triggers 'abort' event
+  if (item?.tusUploadId) {
+    chunkedUpload.cancel(item.tusUploadId)
   }
+  // Remove from queue
+  uploadQueue.value = uploadQueue.value.filter(i => i.id !== id)
 }
 ```
 
@@ -49,20 +74,14 @@ function cancelUpload(id: string) {
 function retryUpload(id: string) {
   const item = uploadQueue.value.find(i => i.id === id)
   if (item) {
-    item.status = 'pending'
+    // Clean up old tus upload
+    if (item.tusUploadId) {
+      chunkedUpload.remove(item.tusUploadId)
+    }
+    // Reset and restart
+    item.status = 'uploading'
     item.progress = 0
-    item.error = undefined
-    processQueue()  // Start processing if not already
-  }
-}
-```
-
-### Remove (Error)
-```typescript
-function removeFromQueue(id: string) {
-  const index = uploadQueue.value.findIndex(i => i.id === id)
-  if (index !== -1) {
-    uploadQueue.value.splice(index, 1)
+    startUpload(item.id, item.file)
   }
 }
 ```
@@ -70,7 +89,16 @@ function removeFromQueue(id: string) {
 ### Clear Completed
 ```typescript
 function clearCompleted() {
-  uploadQueue.value = uploadQueue.value.filter(i => i.status !== 'completed')
+  // Clean up tus instances
+  for (const item of uploadQueue.value) {
+    if (item.status === 'completed' || item.status === 'error') {
+      if (item.tusUploadId) chunkedUpload.remove(item.tusUploadId)
+    }
+  }
+  // Filter queue
+  uploadQueue.value = uploadQueue.value.filter(
+    i => i.status === 'uploading' || i.status === 'paused'
+  )
 }
 ```
 
@@ -78,8 +106,18 @@ function clearCompleted() {
 
 ## UI Behavior
 
-- Cancel button appears only during active upload
-- Retry/Remove buttons appear only on failed items
-- "Clear completed" button appears in queue header when there are completed or errored items
+### Button Visibility
+
+| State | Pause | Resume | Cancel | Retry | Remove |
+|-------|-------|--------|--------|-------|--------|
+| Uploading | ✓ | - | ✓ | - | - |
+| Paused | - | ✓ | ✓ | - | - |
+| Complete | - | - | - | - | - |
+| Error | - | - | - | ✓ | ✓ |
+
+### Interactions
+
 - Buttons have hover states for visual feedback
 - No confirmation dialogs - actions are immediate
+- Pausing a file allows other files to use more bandwidth
+- Cancelled files can be re-added by selecting again

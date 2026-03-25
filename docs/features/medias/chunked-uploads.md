@@ -1,97 +1,102 @@
 # Chunked/Resumable Uploads
 
-**Description:** Enable reliable uploads for large files (5GB+) with pause/resume capability, especially important for mobile users on unreliable networks.
+**Description:** All file uploads use the tus protocol for reliable, resumable uploads with pause/resume capability.
 
 **Protocol:** [tus - resumable upload protocol](https://tus.io/)
 
 ---
 
-## Problem Statement
+## Overview
 
-Current buffered uploads have critical limitations:
+All uploads (photos and videos) use chunked uploads via the tus protocol. This provides:
 
-| Issue | Impact |
-|-------|--------|
-| Entire file loaded into memory | 5GB video = 5GB RAM, crashes server |
-| No resume on failure | Connection drop = start over |
-| No progress persistence | Browser refresh = lost progress |
-| Mobile unfriendly | Unreliable networks cause failures |
+| Feature | Benefit |
+|---------|---------|
+| Chunked transfer | Low memory usage (~5MB per upload) |
+| Pause/Resume | User control over large uploads |
+| Auto-retry | Survives network interruptions |
+| Parallel uploads | All files upload simultaneously |
+| Progress persistence | Resume after page refresh |
+| Checksum verification | Data integrity guaranteed |
 
 ---
 
-## Acceptance Criteria
+## Implementation Status
 
 ### Server-Side
-- [ ] Implement tus protocol endpoints
-- [ ] Support chunked file reception (5MB chunks)
-- [ ] Store upload metadata (filename, size, progress)
-- [ ] Handle chunk reassembly on completion
-- [ ] Clean up stale/abandoned uploads (24h TTL)
-- [ ] Integrate with existing media processing pipeline
-- [ ] Memory usage < 10MB per concurrent upload
+- [x] tus protocol endpoints (`/api/tus`)
+- [x] Chunked file reception (5MB chunks)
+- [x] File-based context persistence (survives server restart)
+- [x] SHA-256 checksum verification
+- [x] Chunk reassembly on completion
+- [x] Stale upload cleanup (24h TTL, hourly cron)
+- [x] Integration with media processing pipeline
+- [x] Memory usage < 10MB per concurrent upload
 
 ### Client-Side
-- [ ] Chunk files before upload (5MB default)
-- [ ] Track uploaded chunks in localStorage
-- [ ] Resume from last successful chunk on retry
-- [ ] Show accurate progress (per-chunk)
-- [ ] Handle network errors gracefully
-- [ ] Support pause/resume UI controls
+- [x] tus-js-client integration
+- [x] Client-side SHA-256 checksum calculation
+- [x] localStorage persistence for resume
+- [x] Parallel file uploads (all files start immediately)
+- [x] Pause/resume UI controls
+- [x] Accurate per-chunk progress
 
 ### Integration
-- [ ] Works with photographer upload page
-- [ ] Works with guest upload page
-- [ ] Triggers media processing after completion
-- [ ] Creates database record on completion
-- [ ] Backward compatible (small files still work)
+- [x] Works with photographer upload page
+- [x] Works with guest upload page
+- [x] Triggers media processing after completion
+- [x] Creates database record on completion
 
 ---
 
-## Technical Specification
+## Configuration
 
-### tus Protocol Endpoints
+```typescript
+// nuxt.config.ts
+runtimeConfig: {
+  upload: {
+    maxChunkedSize: 10 * 1024 * 1024 * 1024, // 10GB
+    staleThresholdHours: 24
+  },
+  public: {
+    upload: {
+      chunkSize: 5 * 1024 * 1024, // 5MB
+      maxChunkedSize: 10 * 1024 * 1024 * 1024 // 10GB
+    }
+  }
+}
+```
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/tus` | Create new upload |
-| HEAD | `/api/tus/:uploadId` | Get upload status/offset |
-| PATCH | `/api/tus/:uploadId` | Upload chunk data |
-| DELETE | `/api/tus/:uploadId` | Cancel upload |
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `chunkSize` | 5MB | Size of each upload chunk |
+| `maxChunkedSize` | 10GB | Maximum file size |
+| `staleThresholdHours` | 24h | Cleanup threshold for abandoned uploads |
 
-### Request/Response Flow
+---
+
+## Architecture
+
+### File Structure
 
 ```
-1. CREATE UPLOAD
-   POST /api/tus
-   Headers:
-     Upload-Length: 5368709120
-     Upload-Metadata: filename base64,filetype base64,eventId base64
+server/
+├── api/tus/
+│   ├── index.ts          # POST - Create upload
+│   └── [id].ts           # HEAD, PATCH, DELETE - Upload operations
+├── features/tus/
+│   ├── tus.server.ts     # tus server configuration
+│   ├── tus.service.ts    # Upload finalization
+│   ├── tus.validation.ts # Metadata validation
+│   ├── tus.checksum.ts   # SHA-256 verification
+│   └── tus.types.ts      # Type definitions
+└── tasks/
+    └── cleanup-stale-uploads.ts
 
-   Response: 201 Created
-     Location: /api/tus/abc123
-
-2. UPLOAD CHUNKS
-   PATCH /api/tus/abc123
-   Headers:
-     Upload-Offset: 0
-     Content-Type: application/offset+octet-stream
-   Body: [binary chunk data]
-
-   Response: 204 No Content
-     Upload-Offset: 5242880
-
-3. RESUME (after failure)
-   HEAD /api/tus/abc123
-
-   Response: 200 OK
-     Upload-Offset: 15728640
-     Upload-Length: 5368709120
-
-4. CONTINUE FROM OFFSET
-   PATCH /api/tus/abc123
-   Headers:
-     Upload-Offset: 15728640
-   Body: [next chunk]
+composables/
+├── useMediaUpload.ts     # Main upload composable
+├── useChunkedUpload.ts   # tus-js-client wrapper
+└── useUploadStrategy.ts  # File size validation
 ```
 
 ### Storage Structure
@@ -99,179 +104,157 @@ Current buffered uploads have critical limitations:
 ```
 uploads/
 ├── temp/
-│   └── {uploadId}/
-│       ├── data              # Concatenated chunks
-│       └── metadata.json     # Upload info
-│           {
-│             "id": "abc123",
-│             "filename": "video.mp4",
-│             "mimeType": "video/mp4",
-│             "size": 5368709120,
-│             "offset": 15728640,
-│             "eventId": "event-uuid",
-│             "guestTokenId": "token-uuid",
-│             "createdAt": "2024-01-01T00:00:00Z",
-│             "expiresAt": "2024-01-02T00:00:00Z"
-│           }
+│   ├── {uploadId}              # Partial upload data
+│   ├── {uploadId}.json         # tus metadata
+│   └── {uploadId}.context.json # Validated context (eventId, guestToken)
 └── {eventId}/
-    └── {final-filename}.mp4  # Moved after completion
+    └── {final-filename}.mp4    # Completed upload
 ```
-
-### Chunk Size Configuration
-
-| File Size | Chunk Size | Rationale |
-|-----------|------------|-----------|
-| < 100MB | 1MB | Fast completion |
-| 100MB - 1GB | 5MB | Balanced |
-| > 1GB | 10MB | Fewer requests |
-
-Default: **5MB** (configurable)
 
 ---
 
-## Dependencies
+## Upload Flow
 
-### Server
-```json
-{
-  "@tus/server": "^1.x",
-  "@tus/file-store": "^1.x"
-}
+### Parallel Upload Processing
+
+```
+User selects files
+       ↓
+   ┌───┴───┐
+   ↓   ↓   ↓
+File1 File2 File3  ← All start immediately
+   ↓   ↓   ↓
+  tus tus tus      ← Each uses tus protocol
+   ↓   ↓   ↓
+Progress updates   ← Watch handles all status
+   ↓   ↓   ↓
+Complete/Error     ← Independent completion
 ```
 
-### Client
-```json
-{
-  "tus-js-client": "^4.x"
-}
-```
+### Single File Flow
 
-Or use [Uppy](https://uppy.io/) for full-featured upload UI.
+```
+1. CREATE UPLOAD
+   POST /api/tus
+   Headers:
+     Upload-Length: 5368709120
+     Upload-Metadata: filename,filetype,eventId,checksum
+
+   Response: 201 Created
+     Location: /api/tus/abc123
+
+2. UPLOAD CHUNKS (sequential per file)
+   PATCH /api/tus/abc123
+   Headers:
+     Upload-Offset: 0
+     Content-Type: application/offset+octet-stream
+   Body: [5MB chunk]
+
+   Response: 204 No Content
+     Upload-Offset: 5242880
+
+3. ON COMPLETION
+   - Verify SHA-256 checksum
+   - Move file to final location
+   - Create database record
+   - Trigger media processing
+```
 
 ---
 
-## Server Implementation
+## Checksum Verification
+
+### Client-Side
+```typescript
+// Calculate SHA-256 before upload
+const buffer = await file.arrayBuffer()
+const hashBuffer = await crypto.subtle.digest('SHA-256', buffer)
+const checksum = btoa(String.fromCharCode(...new Uint8Array(hashBuffer)))
+
+// Send in metadata
+metadata: {
+  checksum: `sha256 ${checksum}`
+}
+```
+
+### Server-Side
+```typescript
+// Verify on upload completion
+const actualChecksum = await calculateFileChecksum(filePath, 'sha256')
+if (actualChecksum !== expectedChecksum) {
+  throw new Error('Checksum mismatch - file corrupted')
+}
+```
+
+---
+
+## Context Persistence
+
+Upload context (eventId, guestToken validation) is persisted to disk:
 
 ```typescript
-// server/api/tus/[...path].ts
-import { Server } from '@tus/server'
-import { FileStore } from '@tus/file-store'
-
-const tusServer = new Server({
-  path: '/api/tus',
-  datastore: new FileStore({
-    directory: './uploads/temp'
-  }),
-  namingFunction: () => crypto.randomUUID(),
-  onUploadCreate: async (req, res, upload) => {
-    // Validate eventId, guestToken, file type
-    const metadata = parseMetadata(upload.metadata)
-    await validateUpload(metadata)
-  },
-  onUploadFinish: async (req, res, upload) => {
-    // Move to final location
-    // Create database record
-    // Trigger media processing
-    await finalizeUpload(upload)
-  }
+// On upload create - save context
+await saveUploadContext(uploadId, {
+  eventId,
+  guestTokenId,
+  uploadedBy,
+  validatedAt: new Date().toISOString()
 })
 
-export default defineEventHandler((event) => {
-  return tusServer.handle(event.node.req, event.node.res)
+// On upload finish - load context
+const context = await loadUploadContext(uploadId)
+await finalizeUpload(upload, context)
+```
+
+This ensures uploads survive server restarts.
+
+---
+
+## Client Usage
+
+### Basic Upload
+
+```typescript
+const {
+  uploadQueue,
+  addFiles,
+  pauseUpload,
+  resumeUpload,
+  cancelUpload
+} = useMediaUpload('/api/tus', onComplete, {
+  metadata: { eventId: 'xxx' }
 })
+
+// Add files - they start immediately in parallel
+addFiles([file1, file2, file3])
+
+// Control individual uploads
+pauseUpload(uploadId)
+resumeUpload(uploadId)
+cancelUpload(uploadId)
 ```
 
----
-
-## Client Implementation
+### Resumable Uploads (after page refresh)
 
 ```typescript
-// composables/useChunkedUpload.ts
-import * as tus from 'tus-js-client'
+const { resumableUploads, hasResumableUploads } = useMediaUpload(...)
 
-export function useChunkedUpload(endpoint: string) {
-  const progress = ref(0)
-  const status = ref<'idle' | 'uploading' | 'paused' | 'complete' | 'error'>('idle')
-
-  let upload: tus.Upload | null = null
-
-  function start(file: File, metadata: Record<string, string>) {
-    upload = new tus.Upload(file, {
-      endpoint,
-      retryDelays: [0, 1000, 3000, 5000, 10000],
-      chunkSize: 5 * 1024 * 1024, // 5MB
-      metadata: {
-        filename: file.name,
-        filetype: file.type,
-        ...metadata
-      },
-      onProgress: (bytesUploaded, bytesTotal) => {
-        progress.value = Math.round((bytesUploaded / bytesTotal) * 100)
-      },
-      onSuccess: () => {
-        status.value = 'complete'
-      },
-      onError: (error) => {
-        status.value = 'error'
-        console.error('Upload failed:', error)
-      }
-    })
-
-    // Check for previous upload
-    upload.findPreviousUploads().then((previousUploads) => {
-      if (previousUploads.length > 0) {
-        upload!.resumeFromPreviousUpload(previousUploads[0])
-      }
-      upload!.start()
-      status.value = 'uploading'
-    })
-  }
-
-  function pause() {
-    upload?.abort()
-    status.value = 'paused'
-  }
-
-  function resume() {
-    upload?.start()
-    status.value = 'uploading'
-  }
-
-  return { progress, status, start, pause, resume }
+// Show banner if incomplete uploads exist
+if (hasResumableUploads.value) {
+  // Display: "2 incomplete uploads - drop same files to resume"
 }
 ```
 
 ---
 
-## Cleanup Strategy
+## UI States
 
-### Stale Upload Cleanup
-
-```typescript
-// server/tasks/cleanup-stale-uploads.ts
-// Run via cron every hour
-
-const STALE_THRESHOLD = 24 * 60 * 60 * 1000 // 24 hours
-
-async function cleanupStaleUploads() {
-  const tempDir = './uploads/temp'
-  const uploads = await readdir(tempDir)
-
-  for (const uploadId of uploads) {
-    const metadataPath = join(tempDir, uploadId, 'metadata.json')
-    const metadata = JSON.parse(await readFile(metadataPath, 'utf-8'))
-
-    if (Date.now() - new Date(metadata.createdAt).getTime() > STALE_THRESHOLD) {
-      await rm(join(tempDir, uploadId), { recursive: true })
-      console.log(`Cleaned up stale upload: ${uploadId}`)
-    }
-  }
-}
-```
-
----
-
-## UI Requirements
+| State | Visual | Actions |
+|-------|--------|---------|
+| Uploading | Blue progress bar, XX% | Pause, Cancel |
+| Paused | Yellow progress bar | Resume, Cancel |
+| Completed | Green checkmark | Clear |
+| Error | Red, error message | Retry, Remove |
 
 ### Upload Progress Component
 
@@ -281,21 +264,19 @@ async function cleanupStaleUploads() {
 │  ┌───────────────────────────────────────────────┐     │
 │  │████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░│ 45% │
 │  └───────────────────────────────────────────────┘     │
-│  2.4 GB of 5.3 GB uploaded • 12 MB/s • ~4 min left    │
+│  2.4 GB of 5.3 GB uploaded                              │
 │                                                         │
 │  [⏸ Pause]  [✕ Cancel]                                 │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Resume Prompt (on page reload)
+### Resumable Uploads Banner
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  ⚠️ Incomplete Upload Found                             │
+│  🔄 2 incomplete uploads - drop same files to resume:   │
 │                                                         │
-│  wedding_video.mp4 - 45% complete                       │
-│                                                         │
-│  [Resume Upload]  [Start Over]  [Discard]              │
+│  [wedding_video.mp4 (45%)] [IMG_001.jpg (78%)]   [×]   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -309,37 +290,38 @@ async function cleanupStaleUploads() {
 | Server error (5xx) | "Server error. Will retry..." | Auto-retry |
 | Invalid file type | "File type not supported" | Show allowed types |
 | File too large | "File exceeds 10GB limit" | Cannot proceed |
-| Storage full | "Server storage full" | Contact admin |
+| Checksum mismatch | "File corrupted during upload" | Auto-retry |
 | Upload expired | "Upload session expired" | Start new upload |
 
 ---
 
-## Performance Targets
+## Cleanup
 
-| Metric | Target |
-|--------|--------|
-| Memory per upload | < 10MB |
-| Concurrent uploads | 10+ per server |
-| Chunk upload latency | < 2s per 5MB chunk |
-| Resume detection | < 500ms |
-| Cleanup job duration | < 1 minute |
+Stale uploads are cleaned up automatically:
+
+```typescript
+// server/tasks/cleanup-stale-uploads.ts
+// Runs every hour via Nitro scheduled tasks
+// Removes uploads older than 24 hours
+```
+
+Configuration in `nuxt.config.ts`:
+```typescript
+nitro: {
+  experimental: { tasks: true },
+  scheduledTasks: {
+    '0 * * * *': ['cleanup-stale-uploads']
+  }
+}
+```
 
 ---
 
-## Security Considerations
+## Security
 
-- Validate eventId/guestTokenId before accepting upload
-- Enforce file type restrictions via metadata validation
-- Rate limit upload creation (prevent DoS)
-- Authenticate chunk uploads via upload ID (unguessable UUID)
-- Clean up incomplete uploads to prevent disk exhaustion
-- Validate final file size matches declared size
-
----
-
-## Migration Path
-
-1. **Phase 1**: Add tus endpoints alongside existing upload
-2. **Phase 2**: Update client to use tus for files > 50MB
-3. **Phase 3**: Make tus the default for all uploads
-4. **Phase 4**: Remove legacy buffered upload endpoints
+- eventId/guestToken validated before accepting upload
+- File type restrictions enforced via metadata validation
+- SHA-256 checksum verification prevents corruption
+- Context persisted to disk (survives restart)
+- Unguessable UUID for upload IDs
+- CORS configured for same-origin (configurable)
