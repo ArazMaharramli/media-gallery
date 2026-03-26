@@ -77,6 +77,10 @@ export function getTusServer(): Server {
       directory: tempDir
     }),
 
+    // Trust X-Forwarded-Proto and X-Forwarded-Host headers from reverse proxy
+    // Required for correct HTTPS URLs when behind nginx/traefik
+    respectForwardedHeaders: true,
+
     // Generate UUID for upload IDs (matching existing pattern)
     namingFunction: () => randomUUID(),
 
